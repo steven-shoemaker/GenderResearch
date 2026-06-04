@@ -18,6 +18,16 @@ Personal app to analyze job descriptions for masculine/feminine coded language. 
 
 Analysis still runs in the browser; only persistence uses the API.
 
+## Repository
+
+https://github.com/steven-shoemaker/GenderResearch
+
+```bash
+git clone https://github.com/steven-shoemaker/GenderResearch.git
+cd GenderResearch
+npm install
+```
+
 ## Local development
 
 1. Link the project on [Vercel](https://vercel.com) and create a **Blob** store (Storage tab).
