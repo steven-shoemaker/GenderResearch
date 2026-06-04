@@ -1,12 +1,11 @@
 import { useMemo, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { CorpusSummary } from "../components/CorpusSummary";
-import { GenderComparisonBar } from "../components/GenderComparisonBar";
+import { EntriesTable } from "../components/EntriesTable";
 import { fetchEntries, fetchLexicon } from "../lib/api-client";
 import { computeCorpusStats } from "../lib/corpus-stats";
 import { exportEntriesCsv } from "../lib/export-csv";
 import { entryTitle } from "../lib/entries";
-import { entryIsStale } from "../lib/utils";
 import { PageHeader } from "../components/ui/PageHeader";
 import type { Entry, Lexicon } from "../types";
 
@@ -30,19 +29,6 @@ function filterEntries(
     (a, b) =>
       new Date(b.capturedDate).getTime() - new Date(a.capturedDate).getTime(),
   );
-}
-
-function formatCapturedDate(iso: string): string {
-  if (!iso) return "";
-  try {
-    return new Date(iso + "T12:00:00").toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  } catch {
-    return iso;
-  }
 }
 
 export function CorpusPage() {
@@ -89,7 +75,7 @@ export function CorpusPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <PageHeader
         title="Entries"
         description="Paste job descriptions, analyze gendered language, and save your research."
@@ -115,7 +101,7 @@ export function CorpusPage() {
         }
       />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <div className="flex-1" role="search">
           <label htmlFor="search-entries" className="sr-only">
             Search entries
@@ -126,10 +112,10 @@ export function CorpusPage() {
             placeholder="Search title, company, notes, or text…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="field-input min-h-11"
+            className="field-input min-h-10 py-2"
           />
         </div>
-        <label className="inline-flex items-center gap-2.5 text-sm text-muted cursor-pointer min-h-11 shrink-0 px-1">
+        <label className="inline-flex items-center gap-2 text-sm text-muted cursor-pointer min-h-10 shrink-0 px-1">
           <input
             type="checkbox"
             checked={showArchived}
@@ -141,7 +127,7 @@ export function CorpusPage() {
       </div>
 
       {error && (
-        <p className="rounded-lg border border-danger/25 bg-danger-soft text-danger text-sm px-4 py-2.5">
+        <p className="rounded-lg border border-danger/25 bg-danger-soft text-danger text-sm px-3 py-2">
           {error}
         </p>
       )}
@@ -149,78 +135,25 @@ export function CorpusPage() {
       {!loading && <CorpusSummary stats={corpusStats} showArchived={showArchived} />}
 
       {loading ? (
-        <p className="text-muted text-sm py-8">Loading entries…</p>
+        <p className="text-muted text-sm py-6">Loading entries…</p>
       ) : visible.length === 0 ? (
-        <div className="panel px-8 py-14 text-center">
-          <p className="font-serif text-lg text-ink">
+        <div className="rounded-lg border border-dashed border-line bg-surface/60 px-6 py-10 text-center">
+          <p className="font-medium text-ink">
             {showArchived ? "No archived entries" : "Your research log is empty"}
           </p>
-          <p className="mt-2 text-sm text-muted max-w-sm mx-auto leading-relaxed">
+          <p className="mt-1 text-sm text-muted">
             {showArchived
               ? "Archived entries will appear here."
-              : "Start with a pasted job description. Analysis uses your word list."}
+              : "Start with a pasted job description."}
           </p>
           {!showArchived && (
-            <Link to="/entry/new" className="btn btn-primary mt-6">
+            <Link to="/entry/new" className="btn btn-primary mt-4">
               New entry
             </Link>
           )}
         </div>
       ) : (
-        <div className="panel overflow-hidden">
-          <p className="px-5 py-3 sm:px-6 text-xs text-muted leading-relaxed border-b border-line">
-            Each row: bar is masculine vs feminine among gendered words only.
-            Percentages are share of all words in that posting.
-          </p>
-          <ul className="divide-y divide-line">
-            {visible.map((entry) => {
-              const stale = lexicon ? entryIsStale(entry, lexicon) : false;
-              const a = entry.analysis;
-              return (
-                <li key={entry.id}>
-                  <Link
-                    to={`/entry/${entry.id}`}
-                    className="group flex items-start justify-between gap-4 px-5 py-4 sm:px-6 sm:py-5 hover:bg-surface-hover motion-safe:transition-colors motion-safe:duration-200"
-                    style={{ transitionTimingFunction: "var(--ease-out)" }}
-                  >
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex items-center gap-2.5">
-                        <h2 className="font-medium text-ink truncate group-hover:text-accent motion-safe:transition-colors motion-safe:duration-200">
-                          {entryTitle(entry)}
-                        </h2>
-                        {stale && (
-                          <span
-                            className="shrink-0 size-2 rounded-full bg-warn-text/80"
-                            title="Scores outdated"
-                            aria-label="Scores outdated"
-                          />
-                        )}
-                      </div>
-                      {entry.company && (
-                        <p className="text-sm text-muted truncate">{entry.company}</p>
-                      )}
-                      <p className="text-xs text-muted tabular-nums">
-                        {formatCapturedDate(entry.capturedDate)}
-                      </p>
-                    </div>
-                    {a ? (
-                      <GenderComparisonBar
-                        masculinePercent={a.masculinePercent}
-                        femininePercent={a.femininePercent}
-                        size="sm"
-                        className="pointer-events-none"
-                      />
-                    ) : (
-                      <span className="text-xs text-muted shrink-0 w-24 text-right">
-                        No scores
-                      </span>
-                    )}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+        <EntriesTable entries={visible} lexicon={lexicon} />
       )}
     </div>
   );

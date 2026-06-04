@@ -472,7 +472,7 @@ export function EntryPage() {
       </section>
 
       <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-line bg-paper">
-        <div className="mx-auto max-w-2xl px-5 py-3 flex flex-wrap gap-2 justify-end">
+        <div className="mx-auto max-w-4xl px-5 py-3 flex flex-wrap gap-2 justify-end">
           {preview && (
             <>
               <button

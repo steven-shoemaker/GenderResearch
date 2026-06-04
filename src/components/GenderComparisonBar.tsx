@@ -1,5 +1,5 @@
 import { formatPercent } from "../lib/analyze";
-import { genderedWordSplit } from "../lib/gender-comparison";
+import { GenderBarTrack } from "./GenderBarTrack";
 
 export type GenderComparisonSize = "sm" | "lg";
 
@@ -27,33 +27,16 @@ export function GenderComparisonBar({
 }: GenderComparisonBarProps) {
   const masc = Math.max(0, masculinePercent);
   const fem = Math.max(0, femininePercent);
-  const { mascShare, femShare, hasGendered } = genderedWordSplit(masc, fem);
   const s = sizeClass[size];
   const legendId = showLegend ? `gender-legend-${size}` : undefined;
 
   return (
     <figure className={`${s.root} ${className}`.trim()}>
-      <div
-        className={`w-full overflow-hidden rounded-md ring-1 ring-line ${s.bar} flex bg-surface-hover`}
-        aria-hidden
-      >
-        {hasGendered ? (
-          <>
-            {masc > 0 && (
-              <span
-                className="h-full gender-masc-bar ring-1 ring-masc-text/15 min-w-[2px]"
-                style={{ width: `${mascShare}%` }}
-              />
-            )}
-            {fem > 0 && (
-              <span
-                className="h-full gender-fem-bar ring-1 ring-fem-text/15 min-w-[2px]"
-                style={{ width: `${femShare}%` }}
-              />
-            )}
-          </>
-        ) : null}
-      </div>
+      <GenderBarTrack
+        masculinePercent={masc}
+        femininePercent={fem}
+        className={`max-w-none ${size === "lg" ? "h-3.5 rounded-md" : ""}`}
+      />
 
       <dl
         className={`mt-2 flex justify-between gap-3 tabular-nums ${size === "sm" ? "gap-2" : "sm:gap-8"}`}

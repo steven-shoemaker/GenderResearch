@@ -8,7 +8,7 @@ export function Layout() {
   return (
     <div className="min-h-dvh flex flex-col">
       <header className="sticky top-0 z-20 border-b border-line bg-paper">
-        <div className="mx-auto max-w-2xl px-5 py-4 flex items-center justify-between gap-4">
+        <div className="mx-auto max-w-4xl px-5 py-3 flex items-center justify-between gap-4">
           <Link
             to="/"
             className="font-serif text-[1.125rem] font-semibold text-ink tracking-tight hover:text-accent transition-colors duration-200"
@@ -42,7 +42,7 @@ export function Layout() {
           </nav>
         </div>
       </header>
-      <main className="flex-1 mx-auto w-full max-w-2xl px-5 py-10 sm:py-12">
+      <main className="flex-1 mx-auto w-full max-w-4xl px-5 py-8 sm:py-10">
         <Outlet />
       </main>
     </div>
