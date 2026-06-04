@@ -9,6 +9,7 @@ function json(d, s = 200) { return new Response(JSON.stringify(d), { status: s, 
 function err(m, s = 500) { return json({ error: m }, s); }
 function opts() { return new Response(null, { status: 204, headers: CORS }); }
 function tok() { return process.env.BLOB_READ_WRITE_TOKEN; }
+function entryIdFromUrl(url) { const p = new URL(url).pathname.split("/").filter(Boolean); const i = p.indexOf("entries"); return i >= 0 && p[i + 1] ? p[i + 1] : ""; }
 async function readJson(p, fb) { try { const { list } = await import("@vercel/blob"); const { blobs } = await list({ prefix: p, limit: 1, token: tok() }); const m = blobs.find((b) => b.pathname === p); if (!m) return fb; const r = await fetch(m.url); return r.ok ? r.json() : fb; } catch { return fb; } }
 async function writeJson(p, d) { const { put } = await import("@vercel/blob"); await put(p, JSON.stringify(d), { access: "public", addRandomSuffix: false, allowOverwrite: true, contentType: "application/json", token: tok() }); }
 async function getEntries() { return readJson(ENTRIES_BLOB, []); }
