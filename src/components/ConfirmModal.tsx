@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react";
+
 interface ConfirmModalProps {
   title: string;
   message: string;
@@ -17,34 +19,41 @@ export function ConfirmModal({
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
+  const cancelRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    cancelRef.current?.focus();
+  }, []);
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/40"
+      className="fixed inset-0 z-50 flex items-center justify-center p-5 bg-ink/30"
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-title"
+      onClick={onCancel}
     >
-      <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 border border-stone-200">
-        <h2 id="confirm-title" className="font-serif text-lg font-semibold text-ink">
+      <div
+        className="panel max-w-md w-full p-6 sm:p-7"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 id="confirm-title" className="font-serif text-xl font-semibold text-ink">
           {title}
         </h2>
-        <p className="mt-2 text-sm text-muted">{message}</p>
-        <div className="mt-6 flex justify-end gap-3">
+        <p className="mt-2 text-sm text-muted leading-relaxed">{message}</p>
+        <div className="mt-7 flex flex-wrap justify-end gap-2">
           <button
+            ref={cancelRef}
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-ink rounded-lg hover:bg-stone-100 min-h-11"
+            className="btn btn-ghost"
           >
             {cancelLabel}
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className={`px-4 py-2 text-sm font-medium rounded-lg min-h-11 ${
-              destructive
-                ? "bg-red-600 text-white hover:bg-red-700"
-                : "bg-accent text-white hover:bg-violet-900"
-            }`}
+            className={`btn ${destructive ? "bg-danger text-white hover:opacity-90" : "btn-primary"}`}
           >
             {confirmLabel}
           </button>

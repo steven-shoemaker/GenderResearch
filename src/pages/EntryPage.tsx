@@ -14,6 +14,9 @@ import { entryIsStale, todayIsoDate } from "../lib/utils";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { HighlightedBody } from "../components/HighlightedBody";
 import { ScoreStrip } from "../components/ScoreStrip";
+import { Field, TextArea, TextInput } from "../components/ui/Field";
+import { PageHeader } from "../components/ui/PageHeader";
+import { Toast } from "../components/ui/Toast";
 import type { AttachmentMeta, Entry, Lexicon } from "../types";
 
 interface PendingFile {
@@ -278,44 +281,34 @@ export function EntryPage() {
   };
 
   if (loading || !entry) {
-    return <p className="text-muted text-sm">Loading entry…</p>;
+    return <p className="text-muted text-sm py-12">Loading entry…</p>;
   }
 
   const canSave =
     preview && entry.bodyText.trim() && entry.analysis && !saving && lexicon;
 
   return (
-    <div className="space-y-6 pb-24">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          {preview && (
-            <span className="text-xs font-medium uppercase tracking-wide text-accent">
-              Preview
-            </span>
-          )}
-          <h1 className="font-serif text-2xl font-semibold text-ink">
-            {preview ? "New entry" : entryTitle(entry)}
-          </h1>
-        </div>
-        <Link to="/" className="text-sm text-muted hover:text-accent min-h-11 inline-flex items-center">
-          ← Entries
-        </Link>
-      </div>
+    <div className="space-y-8 pb-28">
+      <PageHeader
+        eyebrow={preview ? "Preview" : undefined}
+        title={preview ? "New entry" : entryTitle(entry)}
+        back={
+          <Link to="/" className="text-link text-sm min-h-11 inline-flex items-center">
+            ← Entries
+          </Link>
+        }
+      />
 
-      {savedToast && (
-        <p className="rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm px-4 py-2">
-          Entry saved
-        </p>
-      )}
+      {savedToast && <Toast tone="success">Entry saved</Toast>}
 
       {stale && (
-        <div className="rounded-xl bg-warn-bg border border-amber-200 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <p className="text-sm text-warn-text">Scores may be outdated.</p>
+        <div className="rounded-lg bg-warn-bg border border-warn-text/15 px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <p className="text-sm text-warn-text font-medium">Scores may be outdated.</p>
           <button
             type="button"
             onClick={() => void runRecompute()}
             disabled={recomputing}
-            className="rounded-lg bg-amber-600 text-white px-4 py-2 text-sm font-semibold hover:bg-amber-700 disabled:opacity-60 min-h-11"
+            className="btn btn-warn shrink-0"
           >
             {recomputing ? "Recomputing…" : "Recompute entry"}
           </button>
@@ -323,113 +316,98 @@ export function EntryPage() {
       )}
 
       {error && (
-        <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
+        <p className="rounded-lg border border-danger/25 bg-danger-soft text-danger text-sm px-4 py-2.5">
           {error}
         </p>
       )}
 
       {entry.analysis && <ScoreStrip analysis={entry.analysis} />}
 
-      <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-        <label htmlFor="body-text" className="block text-sm font-medium text-ink mb-2">
-          Job description text
-        </label>
-        <p className="text-xs text-muted mb-3">
-          Paste the job description here. Analysis uses pasted text only. Attach a PDF as a
-          saved copy of the page (stored in the cloud when you save).
-        </p>
-        <textarea
-          id="body-text"
-          value={entry.bodyText}
-          onChange={(e) => handleBodyChange(e.target.value)}
-          rows={10}
-          className="w-full rounded-lg border border-stone-300 px-3 py-2 text-[15px] leading-relaxed focus:outline-none focus:ring-2 focus:ring-accent/30 resize-y min-h-[200px]"
-          placeholder="Paste job description from LinkedIn…"
-        />
-      </div>
+      <section className="space-y-3">
+        <Field
+          label="Job description text"
+          htmlFor="body-text"
+          hint="Analysis uses pasted text only. You can attach a PDF later as a saved copy of the page."
+        >
+          <TextArea
+            id="body-text"
+            value={entry.bodyText}
+            onChange={(e) => handleBodyChange(e.target.value)}
+            rows={12}
+            className="panel-inset text-[0.9375rem] leading-[1.65] min-h-[14rem] border-0 focus:ring-2"
+            placeholder="Paste the full job description here…"
+          />
+        </Field>
+      </section>
 
       {entry.analysis && (
         <HighlightedBody bodyText={entry.bodyText} matches={entry.analysis.matches} />
       )}
 
-      <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm space-y-4">
-        <h2 className="text-sm font-medium text-ink">Details</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="text-xs text-muted" htmlFor="title">
-              Title
-            </label>
-            <input
+      <section className="panel p-5 sm:p-6 space-y-5">
+        <h2 className="text-sm font-semibold text-ink">Details</h2>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Field label="Title" htmlFor="title">
+            <TextInput
               id="title"
               value={entry.title}
               onChange={(e) => void saveMetadata({ ...entry, title: e.target.value })}
-              className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-sm min-h-11"
             />
-          </div>
-          <div>
-            <label className="text-xs text-muted" htmlFor="company">
-              Company
-            </label>
-            <input
+          </Field>
+          <Field label="Company" htmlFor="company">
+            <TextInput
               id="company"
               value={entry.company}
               onChange={(e) => void saveMetadata({ ...entry, company: e.target.value })}
-              className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-sm min-h-11"
             />
-          </div>
+          </Field>
           <div className="sm:col-span-2">
-            <label className="text-xs text-muted" htmlFor="source-url">
-              Source URL
-            </label>
-            <input
-              id="source-url"
-              type="url"
-              value={entry.sourceUrl}
-              onChange={(e) => void saveMetadata({ ...entry, sourceUrl: e.target.value })}
-              placeholder="https://…"
-              className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-sm min-h-11"
-            />
+            <Field label="Source URL" htmlFor="source-url">
+              <TextInput
+                id="source-url"
+                type="url"
+                value={entry.sourceUrl}
+                onChange={(e) => void saveMetadata({ ...entry, sourceUrl: e.target.value })}
+                placeholder="https://…"
+              />
+            </Field>
           </div>
-          <div>
-            <label className="text-xs text-muted" htmlFor="captured-date">
-              Captured date
-            </label>
-            <input
+          <Field label="Captured date" htmlFor="captured-date">
+            <TextInput
               id="captured-date"
               type="date"
               value={entry.capturedDate || todayIsoDate()}
               onChange={(e) =>
                 void saveMetadata({ ...entry, capturedDate: e.target.value })
               }
-              className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-sm min-h-11"
             />
-          </div>
+          </Field>
           <div className="sm:col-span-2">
-            <label className="text-xs text-muted" htmlFor="notes">
-              Notes
-            </label>
-            <textarea
-              id="notes"
-              value={entry.notes}
-              onChange={(e) => void saveMetadata({ ...entry, notes: e.target.value })}
-              rows={2}
-              className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-sm resize-y"
-            />
+            <Field label="Notes" htmlFor="notes">
+              <TextArea
+                id="notes"
+                value={entry.notes}
+                onChange={(e) => void saveMetadata({ ...entry, notes: e.target.value })}
+                rows={2}
+              />
+            </Field>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-        <h2 className="text-sm font-medium text-ink mb-2">PDF snapshot</h2>
-        <p className="text-xs text-muted mb-3">
-          {preview
-            ? "PDFs upload when you save this entry."
-            : "Stored in cloud storage — download anytime."}
-        </p>
+      <section className="panel p-5 sm:p-6 space-y-4">
+        <div>
+          <h2 className="text-sm font-semibold text-ink">PDF snapshot</h2>
+          <p className="text-xs text-muted mt-1 leading-relaxed">
+            {preview
+              ? "PDFs upload when you save this entry."
+              : "Stored in the cloud. Download anytime."}
+          </p>
+        </div>
         <input
           type="file"
           accept="application/pdf,.pdf"
-          className="text-sm text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-stone-100 file:px-3 file:py-2 file:text-sm file:font-medium"
+          className="text-sm text-muted file:mr-3 file:rounded-md file:border-0 file:bg-surface-hover file:px-3 file:py-2 file:text-sm file:font-semibold file:text-ink"
           disabled={uploading}
           onChange={(e) => {
             const f = e.target.files?.[0];
@@ -437,18 +415,20 @@ export function EntryPage() {
             e.target.value = "";
           }}
         />
-        {uploading && <p className="text-xs text-muted mt-2">Uploading…</p>}
-        <ul className="mt-3 space-y-2">
+        {uploading && <p className="text-xs text-muted">Uploading…</p>}
+        <ul className="space-y-2">
           {pendingFiles.map((p) => (
             <li
               key={p.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm"
+              className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-warn-bg/60 px-3 py-2.5 text-sm"
             >
               <span className="truncate">{p.file.name} (pending save)</span>
               <button
                 type="button"
-                onClick={() => setConfirm({ type: "removeAttachment", attachmentId: p.id, saved: false })}
-                className="text-red-600 hover:underline min-h-11 px-2"
+                onClick={() =>
+                  setConfirm({ type: "removeAttachment", attachmentId: p.id, saved: false })
+                }
+                className="text-danger text-sm font-medium hover:underline min-h-11 px-2"
               >
                 Remove
               </button>
@@ -457,14 +437,14 @@ export function EntryPage() {
           {entry.attachments.map((a) => (
             <li
               key={a.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-stone-50 px-3 py-2 text-sm"
+              className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-surface-hover px-3 py-2.5 text-sm"
             >
-              <span className="truncate">{a.fileName}</span>
-              <span className="flex gap-2">
+              <span className="truncate font-medium text-ink">{a.fileName}</span>
+              <span className="flex gap-1">
                 <button
                   type="button"
                   onClick={() => downloadAttachment(a)}
-                  className="font-medium text-accent hover:underline min-h-11 px-2"
+                  className="text-link text-sm min-h-11 px-2"
                 >
                   Download attachment
                 </button>
@@ -473,7 +453,7 @@ export function EntryPage() {
                   onClick={() =>
                     setConfirm({ type: "removeAttachment", attachmentId: a.id, saved: true })
                   }
-                  className="text-red-600 hover:underline min-h-11 px-2"
+                  className="text-danger text-sm font-medium hover:underline min-h-11 px-2"
                 >
                   Remove
                 </button>
@@ -481,10 +461,10 @@ export function EntryPage() {
             </li>
           ))}
         </ul>
-      </div>
+      </section>
 
-      <div className="fixed bottom-0 left-0 right-0 border-t border-stone-200 bg-paper/95 backdrop-blur-sm">
-        <div className="mx-auto max-w-3xl px-4 py-3 flex flex-wrap gap-2 justify-end">
+      <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-line bg-paper">
+        <div className="mx-auto max-w-2xl px-5 py-3 flex flex-wrap gap-2 justify-end">
           {preview && (
             <>
               <button
@@ -492,7 +472,7 @@ export function EntryPage() {
                 onClick={() =>
                   dirtyPreview ? setConfirm({ type: "discard" }) : discard()
                 }
-                className="px-4 py-2.5 text-sm font-medium text-muted hover:text-ink min-h-11"
+                className="btn btn-ghost"
               >
                 Discard
               </button>
@@ -500,7 +480,7 @@ export function EntryPage() {
                 type="button"
                 onClick={() => void runAnalyze()}
                 disabled={analyzing || !entry.bodyText.trim() || !lexicon}
-                className="px-5 py-2.5 rounded-lg bg-accent text-white text-sm font-semibold hover:bg-violet-900 disabled:opacity-50 min-h-11"
+                className="btn btn-primary"
               >
                 {analyzing ? "Analyzing…" : "Analyze"}
               </button>
@@ -509,7 +489,7 @@ export function EntryPage() {
                 onClick={() => void saveEntryAction()}
                 disabled={!canSave}
                 title={!entry.analysis ? "Analyze before saving" : undefined}
-                className="px-5 py-2.5 rounded-lg border border-accent text-accent text-sm font-semibold hover:bg-violet-50 disabled:opacity-40 min-h-11"
+                className="btn btn-secondary"
               >
                 {saving ? "Saving…" : "Save entry"}
               </button>
@@ -521,11 +501,7 @@ export function EntryPage() {
                 type="button"
                 onClick={() => void runRecompute()}
                 disabled={recomputing || !lexicon}
-                className={`px-5 py-2.5 rounded-lg text-sm font-semibold min-h-11 ${
-                  stale
-                    ? "bg-accent text-white hover:bg-violet-900"
-                    : "border border-stone-300 text-ink hover:bg-stone-50"
-                } disabled:opacity-50`}
+                className={stale ? "btn btn-primary" : "btn btn-secondary"}
               >
                 {recomputing ? "Recomputing…" : "Recompute entry"}
               </button>
@@ -533,7 +509,7 @@ export function EntryPage() {
                 <button
                   type="button"
                   onClick={() => void restoreEntry()}
-                  className="px-4 py-2.5 text-sm text-muted hover:text-ink min-h-11"
+                  className="btn btn-ghost"
                 >
                   Restore entry
                 </button>
@@ -541,7 +517,7 @@ export function EntryPage() {
                 <button
                   type="button"
                   onClick={() => void archiveEntry()}
-                  className="px-4 py-2.5 text-sm text-muted hover:text-ink min-h-11"
+                  className="btn btn-ghost"
                 >
                   Archive entry
                 </button>
@@ -549,7 +525,7 @@ export function EntryPage() {
               <button
                 type="button"
                 onClick={() => setConfirm({ type: "delete" })}
-                className="px-4 py-2.5 text-sm text-red-600 hover:text-red-800 min-h-11"
+                className="btn btn-ghost text-danger hover:text-danger"
               >
                 Delete entry
               </button>

@@ -22,8 +22,8 @@ export function HighlightedBody({ bodyText, matches }: HighlightedBodyProps) {
     }
     const cls =
       m.category === "masculine"
-        ? "bg-masc-bg text-masc-text rounded px-0.5"
-        : "bg-fem-bg text-fem-text rounded px-0.5";
+        ? "bg-masc-bg text-masc-text rounded-sm px-0.5 box-decoration-clone"
+        : "bg-fem-bg text-fem-text rounded-sm px-0.5 box-decoration-clone";
     nodes.push(
       <mark key={`m-${m.start}`} className={`${cls} font-medium`}>
         {bodyText.slice(m.start, m.end)}
@@ -33,15 +33,22 @@ export function HighlightedBody({ bodyText, matches }: HighlightedBodyProps) {
   }
 
   if (cursor < bodyText.length) {
-    nodes.push(<span key={`t-end`}>{bodyText.slice(cursor)}</span>);
+    nodes.push(<span key="t-end">{bodyText.slice(cursor)}</span>);
   }
 
   return (
-    <div className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
-      <h3 className="text-sm font-medium text-muted mb-3">Highlighted job description</h3>
-      <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-ink">
-        {nodes}
+    <section className="panel overflow-hidden">
+      <div className="border-b border-line px-5 py-3 sm:px-6">
+        <h2 className="text-sm font-semibold text-ink">Highlighted job description</h2>
+        <p className="text-xs text-muted mt-0.5">
+          Matched terms from your word list
+        </p>
       </div>
-    </div>
+      <div className="px-5 py-5 sm:px-6 max-h-[min(28rem,55vh)] overflow-y-auto">
+        <div className="whitespace-pre-wrap text-[0.9375rem] leading-[1.7] text-ink max-w-prose">
+          {nodes}
+        </div>
+      </div>
+    </section>
   );
 }

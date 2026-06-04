@@ -3,6 +3,8 @@ import { Link, useBlocker } from "react-router-dom";
 import seedLexicon from "../../data/lexicon.seed.json";
 import { fetchLexicon, saveLexicon } from "../lib/api-client";
 import { ConfirmModal } from "../components/ConfirmModal";
+import { PageHeader } from "../components/ui/PageHeader";
+import { Toast } from "../components/ui/Toast";
 import type { Lexicon } from "../types";
 
 function cloneLexicon(lex: Lexicon): Lexicon {
@@ -99,21 +101,28 @@ export function LexiconPage() {
 
   const renderColumn = (column: "masculine" | "feminine", label: string) => {
     if (!lexicon) return null;
+    const tone =
+      column === "masculine"
+        ? "border-masc-text/10 bg-masc-bg/30"
+        : "border-fem-text/10 bg-fem-bg/30";
     return (
-      <div className="flex-1 min-w-0">
-        <h2 className="text-sm font-semibold text-ink mb-2">{label}</h2>
-        <ul className="space-y-2">
+      <div className={`flex-1 min-w-0 panel p-4 sm:p-5 border ${tone}`}>
+        <h2 className="font-serif text-lg font-semibold text-ink mb-1">{label}</h2>
+        <p className="text-xs text-muted mb-4">Patterns for this column</p>
+        <ul className="space-y-2 max-h-[min(32rem,50vh)] overflow-y-auto pr-1">
           {lexicon[column].map((row, i) => (
             <li key={`${column}-${i}`} className="flex gap-2">
               <input
                 value={row}
                 onChange={(e) => updateRow(column, i, e.target.value)}
-                className="flex-1 rounded-lg border border-stone-300 px-2 py-1.5 text-sm min-h-10"
+                className="field-input flex-1 min-h-10 text-sm py-2"
+                aria-label={`${label} pattern ${i + 1}`}
               />
               <button
                 type="button"
                 onClick={() => removeRow(column, i)}
-                className="text-red-600 text-xs px-2 min-h-10"
+                className="text-danger text-lg leading-none px-2 min-h-10 rounded-md hover:bg-danger-soft transition-colors duration-200"
+                style={{ transitionTimingFunction: "var(--ease-out)" }}
                 aria-label={`Remove ${label} row ${i + 1}`}
               >
                 ×
@@ -124,7 +133,7 @@ export function LexiconPage() {
         <button
           type="button"
           onClick={() => addRow(column)}
-          className="mt-2 text-sm text-accent font-medium hover:underline min-h-11"
+          className="mt-3 text-link text-sm min-h-11"
         >
           + Add pattern
         </button>
@@ -133,57 +142,55 @@ export function LexiconPage() {
   };
 
   if (loading) {
-    return <p className="text-muted text-sm">Loading word list…</p>;
+    return <p className="text-muted text-sm py-8">Loading word list…</p>;
   }
 
   return (
-    <div className="space-y-6 pb-20">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="font-serif text-3xl font-semibold text-ink">Word list</h1>
-          <p className="mt-1 text-sm text-muted">
-            <span className="font-medium">*</span> at the end = prefix match. Matching is
-            case-insensitive.
-          </p>
-        </div>
-        <Link to="/" className="text-sm text-muted hover:text-accent min-h-11 inline-flex items-center">
-          ← Entries
-        </Link>
-      </div>
+    <div className="space-y-8 pb-24">
+      <PageHeader
+        title="Word list"
+        description={
+          <>
+            <span className="font-medium text-ink">*</span> at the end means prefix match.
+            Matching is case-insensitive.
+          </>
+        }
+        back={
+          <Link to="/" className="text-link text-sm min-h-11 inline-flex items-center">
+            ← Entries
+          </Link>
+        }
+      />
 
-      {toast && (
-        <p className="rounded-lg bg-violet-50 border border-violet-200 text-violet-900 text-sm px-4 py-2">
-          {toast}
-        </p>
-      )}
+      {toast && <Toast tone="info">{toast}</Toast>}
       {error && (
-        <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
+        <p className="rounded-lg border border-danger/25 bg-danger-soft text-danger text-sm px-4 py-2.5">
           {error}
         </p>
       )}
 
-      <div className="flex flex-col lg:flex-row gap-8">
+      <div className="flex flex-col lg:flex-row gap-5">
         {renderColumn("masculine", "Masculine")}
         {renderColumn("feminine", "Feminine")}
       </div>
 
-      <div className="flex flex-wrap gap-3 items-center">
+      <div className="flex flex-wrap gap-3 items-center pt-2">
         <button
           type="button"
           onClick={() => void saveWordList()}
           disabled={!dirty || saving}
-          className="rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-white hover:bg-violet-900 disabled:opacity-40 min-h-11"
+          className="btn btn-primary"
         >
           {saving ? "Saving…" : "Save word list"}
         </button>
         <button
           type="button"
           onClick={() => setConfirmReset(true)}
-          className="text-sm text-red-600 hover:underline min-h-11 px-2"
+          className="btn btn-ghost text-danger hover:text-danger"
         >
           Reset to default list
         </button>
-        <p className="text-xs text-muted w-full">
+        <p className="text-xs text-muted w-full leading-relaxed">
           Saved entries keep old scores until you recompute them.
         </p>
       </div>

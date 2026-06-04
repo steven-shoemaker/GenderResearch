@@ -1,9 +1,13 @@
-import { useEffect, useState } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { CorpusSummary } from "../components/CorpusSummary";
+import { EntryScoreGlance } from "../components/EntryScoreGlance";
 import { fetchEntries, fetchLexicon } from "../lib/api-client";
-import { formatPercent } from "../lib/analyze";
+import { computeCorpusStats } from "../lib/corpus-stats";
+import { exportEntriesCsv } from "../lib/export-csv";
 import { entryTitle } from "../lib/entries";
 import { entryIsStale } from "../lib/utils";
+import { PageHeader } from "../components/ui/PageHeader";
 import type { Entry, Lexicon } from "../types";
 
 function filterEntries(
@@ -28,6 +32,19 @@ function filterEntries(
   );
 }
 
+function formatCapturedDate(iso: string): string {
+  if (!iso) return "";
+  try {
+    return new Date(iso + "T12:00:00").toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return iso;
+  }
+}
+
 export function CorpusPage() {
   const [search, setSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
@@ -46,7 +63,8 @@ export function CorpusPage() {
           setLexicon(l);
         }
       } catch {
-        if (!cancelled) setError("Could not load entries. Check your connection and try again.");
+        if (!cancelled)
+          setError("Could not load entries. Check your connection and try again.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -57,25 +75,47 @@ export function CorpusPage() {
   }, []);
 
   const visible = filterEntries(entries, search, showArchived);
+  const corpusStats = useMemo(
+    () => computeCorpusStats(entries, showArchived, lexicon),
+    [entries, showArchived, lexicon],
+  );
+
+  const exportableCount = entries.filter(
+    (e) => e.saved && e.archived === showArchived,
+  ).length;
+
+  const handleExportCsv = () => {
+    exportEntriesCsv(entries, lexicon, { archivedOnly: showArchived });
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <h1 className="font-serif text-3xl font-semibold text-ink">Entries</h1>
-          <p className="mt-1 text-muted text-sm">
-            Paste job descriptions, analyze gendered language, and save your research.
-          </p>
-        </div>
-        <Link
-          to="/entry/new"
-          className="inline-flex items-center justify-center rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-white hover:bg-violet-900 transition-colors min-h-11"
-        >
-          New entry
-        </Link>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        title="Entries"
+        description="Paste job descriptions, analyze gendered language, and save your research."
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              disabled={loading || exportableCount === 0}
+              className="btn btn-secondary"
+              title={
+                exportableCount === 0
+                  ? "No entries to export"
+                  : "Download collection as CSV"
+              }
+            >
+              Export CSV
+            </button>
+            <Link to="/entry/new" className="btn btn-primary">
+              New entry
+            </Link>
+          </div>
+        }
+      />
 
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="flex-1" role="search">
           <label htmlFor="search-entries" className="sr-only">
             Search entries
@@ -86,64 +126,70 @@ export function CorpusPage() {
             placeholder="Search title, company, notes, or text…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-stone-300 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 min-h-11"
+            className="field-input min-h-11"
           />
         </div>
-        <label className="inline-flex items-center gap-2 text-sm text-muted cursor-pointer min-h-11 px-2">
+        <label className="inline-flex items-center gap-2.5 text-sm text-muted cursor-pointer min-h-11 shrink-0 px-1">
           <input
             type="checkbox"
             checked={showArchived}
             onChange={(e) => setShowArchived(e.target.checked)}
-            className="rounded border-stone-300"
+            className="size-4 rounded border-line text-accent focus:ring-accent/30"
           />
           Show archived
         </label>
       </div>
 
       {error && (
-        <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
+        <p className="rounded-lg border border-danger/25 bg-danger-soft text-danger text-sm px-4 py-2.5">
           {error}
         </p>
       )}
 
+      {!loading && <CorpusSummary stats={corpusStats} showArchived={showArchived} />}
+
       {loading ? (
-        <p className="text-muted text-sm">Loading entries…</p>
+        <p className="text-muted text-sm py-8">Loading entries…</p>
       ) : visible.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-stone-300 bg-white/60 p-12 text-center">
-          <p className="text-muted">
+        <div className="panel px-8 py-14 text-center">
+          <p className="font-serif text-lg text-ink">
+            {showArchived ? "No archived entries" : "Your research log is empty"}
+          </p>
+          <p className="mt-2 text-sm text-muted max-w-sm mx-auto leading-relaxed">
             {showArchived
-              ? "No archived entries."
-              : "Paste a job description to analyze gendered language."}
+              ? "Archived entries will appear here."
+              : "Start with a pasted job description. Analysis uses your word list."}
           </p>
           {!showArchived && (
-            <Link
-              to="/entry/new"
-              className="mt-4 inline-block text-sm font-semibold text-accent hover:underline"
-            >
+            <Link to="/entry/new" className="btn btn-primary mt-6">
               New entry
             </Link>
           )}
         </div>
       ) : (
-        <ul className="space-y-2">
-          {visible.map((entry) => {
-            const stale = lexicon ? entryIsStale(entry, lexicon) : false;
-            const a = entry.analysis;
-            return (
-              <li key={entry.id}>
-                <Link
-                  to={`/entry/${entry.id}`}
-                  className="block rounded-xl border border-stone-200 bg-white p-4 hover:border-accent/40 hover:shadow-sm transition-all"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <h2 className="font-medium text-ink truncate">
+        <div className="panel overflow-hidden">
+          <div className="hidden sm:flex items-center justify-end gap-6 px-6 py-2 border-b border-line text-[0.625rem] font-medium uppercase tracking-wide text-muted">
+            <span className="w-36 text-center">Language comparison</span>
+          </div>
+          <ul className="divide-y divide-line">
+            {visible.map((entry) => {
+              const stale = lexicon ? entryIsStale(entry, lexicon) : false;
+              const a = entry.analysis;
+              return (
+                <li key={entry.id}>
+                  <Link
+                    to={`/entry/${entry.id}`}
+                    className="group flex items-start justify-between gap-4 px-5 py-4 sm:px-6 sm:py-5 hover:bg-surface-hover transition-colors duration-200"
+                    style={{ transitionTimingFunction: "var(--ease-out)" }}
+                  >
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-center gap-2.5">
+                        <h2 className="font-medium text-ink truncate group-hover:text-accent transition-colors duration-200">
                           {entryTitle(entry)}
                         </h2>
                         {stale && (
                           <span
-                            className="shrink-0 w-2 h-2 rounded-full bg-amber-500"
+                            className="shrink-0 size-2 rounded-full bg-warn-text/80"
                             title="Scores outdated"
                             aria-label="Scores outdated"
                           />
@@ -152,24 +198,26 @@ export function CorpusPage() {
                       {entry.company && (
                         <p className="text-sm text-muted truncate">{entry.company}</p>
                       )}
-                      <p className="text-xs text-muted mt-1">{entry.capturedDate}</p>
+                      <p className="text-xs text-muted tabular-nums">
+                        {formatCapturedDate(entry.capturedDate)}
+                      </p>
                     </div>
-                    {a && (
-                      <div className="text-right text-sm tabular-nums shrink-0">
-                        <p className="text-masc-text font-medium">
-                          {formatPercent(a.masculinePercent)}% M
-                        </p>
-                        <p className="text-fem-text font-medium">
-                          {formatPercent(a.femininePercent)}% F
-                        </p>
-                      </div>
+                    {a ? (
+                      <EntryScoreGlance
+                        masculinePercent={a.masculinePercent}
+                        femininePercent={a.femininePercent}
+                      />
+                    ) : (
+                      <span className="text-xs text-muted shrink-0 w-24 text-right">
+                        No scores
+                      </span>
                     )}
-                  </div>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
     </div>
   );
