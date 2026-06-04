@@ -1,0 +1,11 @@
+node_modules
+dist
+.vercel
+.DS_Store
+
+# Secrets (Vercel Blob token, etc.)
+.env
+.env.local
+.env.*.local
+
+# Keep .env.example committable as a template
