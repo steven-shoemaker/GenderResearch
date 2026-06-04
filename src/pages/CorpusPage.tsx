@@ -2,9 +2,11 @@ import { useMemo, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { CorpusSummary } from "../components/CorpusSummary";
 import { EntriesTable } from "../components/EntriesTable";
+import { Toast } from "../components/ui/Toast";
 import { fetchEntries, fetchLexicon } from "../lib/api-client";
 import { computeCorpusStats } from "../lib/corpus-stats";
 import { exportEntriesCsv } from "../lib/export-csv";
+import { recomputeStaleEntries } from "../lib/recompute-entries";
 import { entryTitle } from "../lib/entries";
 import { PageHeader } from "../components/ui/PageHeader";
 import type { Entry, Lexicon } from "../types";
@@ -38,6 +40,15 @@ export function CorpusPage() {
   const [lexicon, setLexicon] = useState<Lexicon | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [recomputingAll, setRecomputingAll] = useState(false);
+  const [recomputeProgress, setRecomputeProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
+  const [recomputeMessage, setRecomputeMessage] = useState<{
+    tone: "success" | "warn";
+    text: string;
+  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -74,6 +85,54 @@ export function CorpusPage() {
     exportEntriesCsv(entries, lexicon, { archivedOnly: showArchived });
   };
 
+  const handleRecomputeAll = async () => {
+    if (!lexicon || corpusStats.staleCount === 0) return;
+    setRecomputingAll(true);
+    setRecomputeMessage(null);
+    setError(null);
+    try {
+      const { succeeded, failed } = await recomputeStaleEntries(
+        entries,
+        lexicon,
+        showArchived,
+        (done, total) => setRecomputeProgress({ done, total }),
+      );
+
+      if (succeeded.length > 0) {
+        const byId = new Map(succeeded.map((e) => [e.id, e]));
+        setEntries((prev) => prev.map((e) => byId.get(e.id) ?? e));
+      }
+
+      if (failed > 0 && succeeded.length > 0) {
+        setRecomputeMessage({
+          tone: "warn",
+          text: `Updated ${succeeded.length} entries. ${failed} could not be saved.`,
+        });
+      } else if (failed > 0) {
+        setRecomputeMessage({
+          tone: "warn",
+          text: "Could not recompute entries. Try again.",
+        });
+      } else if (succeeded.length > 0) {
+        setRecomputeMessage({
+          tone: "success",
+          text:
+            succeeded.length === 1
+              ? "1 entry recomputed."
+              : `${succeeded.length} entries recomputed.`,
+        });
+      }
+    } catch {
+      setRecomputeMessage({
+        tone: "warn",
+        text: "Recompute all failed. Try again.",
+      });
+    } finally {
+      setRecomputingAll(false);
+      setRecomputeProgress(null);
+    }
+  };
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -84,7 +143,7 @@ export function CorpusPage() {
             <button
               type="button"
               onClick={handleExportCsv}
-              disabled={loading || exportableCount === 0}
+              disabled={loading || exportableCount === 0 || recomputingAll}
               className="btn btn-secondary"
               title={
                 exportableCount === 0
@@ -113,6 +172,7 @@ export function CorpusPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="field-input min-h-10 py-2"
+            disabled={recomputingAll}
           />
         </div>
         <label className="inline-flex items-center gap-2 text-sm text-muted cursor-pointer min-h-10 shrink-0 px-1">
@@ -120,6 +180,7 @@ export function CorpusPage() {
             type="checkbox"
             checked={showArchived}
             onChange={(e) => setShowArchived(e.target.checked)}
+            disabled={recomputingAll}
             className="size-4 rounded border-line text-accent focus:ring-accent/30"
           />
           Show archived
@@ -132,7 +193,23 @@ export function CorpusPage() {
         </p>
       )}
 
-      {!loading && <CorpusSummary stats={corpusStats} showArchived={showArchived} />}
+      {recomputeMessage && (
+        <Toast tone={recomputeMessage.tone === "success" ? "success" : "warn"}>
+          {recomputeMessage.text}
+        </Toast>
+      )}
+
+      {!loading && (
+        <CorpusSummary
+          stats={corpusStats}
+          showArchived={showArchived}
+          onRecomputeAll={
+            lexicon && corpusStats.staleCount > 0 ? () => void handleRecomputeAll() : undefined
+          }
+          recomputingAll={recomputingAll}
+          recomputeProgress={recomputeProgress}
+        />
+      )}
 
       {loading ? (
         <p className="text-muted text-sm py-6">Loading entries…</p>

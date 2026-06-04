@@ -26,10 +26,10 @@ export function computeCorpusStats(
   let staleCount = 0;
 
   for (const entry of pool) {
+    if (lexicon && entryIsStale(entry, lexicon)) staleCount += 1;
     const analysis = entry.analysis;
     if (!analysis) continue;
     analyzedCount += 1;
-    if (lexicon && entryIsStale(entry, lexicon)) staleCount += 1;
     totalWords += analysis.totalWordCount;
     masculineCount += analysis.masculineCount;
     feminineCount += analysis.feminineCount;

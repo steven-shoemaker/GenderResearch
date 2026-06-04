@@ -43,7 +43,7 @@ export function HighlightedBody({ bodyText, matches }: HighlightedBodyProps) {
         <p className="text-sm text-muted mt-0.5">Matched terms from your word list</p>
       </div>
       <div className="px-5 py-5 sm:px-6 max-h-[min(28rem,55vh)] overflow-y-auto">
-        <div className="whitespace-pre-wrap text-[0.9375rem] leading-[1.7] text-ink max-w-prose">
+        <div className="whitespace-pre-wrap text-[0.9375rem] leading-[1.7] text-ink w-full">
           {nodes}
         </div>
       </div>
