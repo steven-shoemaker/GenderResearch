@@ -22,8 +22,8 @@ export function HighlightedBody({ bodyText, matches }: HighlightedBodyProps) {
     }
     const cls =
       m.category === "masculine"
-        ? "bg-masc-bg text-masc-text rounded-sm px-0.5 box-decoration-clone"
-        : "bg-fem-bg text-fem-text rounded-sm px-0.5 box-decoration-clone";
+        ? "gender-masc-highlight rounded-sm px-0.5 box-decoration-clone"
+        : "gender-fem-highlight rounded-sm px-0.5 box-decoration-clone";
     nodes.push(
       <mark key={`m-${m.start}`} className={`${cls} font-medium`}>
         {bodyText.slice(m.start, m.end)}
@@ -39,10 +39,8 @@ export function HighlightedBody({ bodyText, matches }: HighlightedBodyProps) {
   return (
     <section className="panel overflow-hidden">
       <div className="border-b border-line px-5 py-3 sm:px-6">
-        <h2 className="text-sm font-semibold text-ink">Highlighted job description</h2>
-        <p className="text-xs text-muted mt-0.5">
-          Matched terms from your word list
-        </p>
+        <h2 className="text-base font-semibold text-ink">Highlighted job description</h2>
+        <p className="text-sm text-muted mt-0.5">Matched terms from your word list</p>
       </div>
       <div className="px-5 py-5 sm:px-6 max-h-[min(28rem,55vh)] overflow-y-auto">
         <div className="whitespace-pre-wrap text-[0.9375rem] leading-[1.7] text-ink max-w-prose">

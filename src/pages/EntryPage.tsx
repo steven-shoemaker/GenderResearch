@@ -290,8 +290,16 @@ export function EntryPage() {
   return (
     <div className="space-y-8 pb-28">
       <PageHeader
-        eyebrow={preview ? "Preview" : undefined}
-        title={preview ? "New entry" : entryTitle(entry)}
+        title={
+          preview ? (
+            <>
+              New entry{" "}
+              <span className="text-base font-sans font-medium text-muted">(preview)</span>
+            </>
+          ) : (
+            entryTitle(entry)
+          )
+        }
         back={
           <Link to="/" className="text-link text-sm min-h-11 inline-flex items-center">
             ← Entries
@@ -344,8 +352,8 @@ export function EntryPage() {
         <HighlightedBody bodyText={entry.bodyText} matches={entry.analysis.matches} />
       )}
 
-      <section className="panel p-5 sm:p-6 space-y-5">
-        <h2 className="text-sm font-semibold text-ink">Details</h2>
+      <section className="pt-6 border-t border-line space-y-5">
+        <h2 className="text-base font-semibold text-ink">Details</h2>
         <div className="grid gap-5 sm:grid-cols-2">
           <Field label="Title" htmlFor="title">
             <TextInput
@@ -395,9 +403,9 @@ export function EntryPage() {
         </div>
       </section>
 
-      <section className="panel p-5 sm:p-6 space-y-4">
+      <section className="pt-6 border-t border-line space-y-4">
         <div>
-          <h2 className="text-sm font-semibold text-ink">PDF snapshot</h2>
+          <h2 className="text-base font-semibold text-ink">PDF snapshot</h2>
           <p className="text-xs text-muted mt-1 leading-relaxed">
             {preview
               ? "PDFs upload when you save this entry."

@@ -107,8 +107,7 @@ export function LexiconPage() {
         : "border-fem-text/10 bg-fem-bg/30";
     return (
       <div className={`flex-1 min-w-0 panel p-4 sm:p-5 border ${tone}`}>
-        <h2 className="font-serif text-lg font-semibold text-ink mb-1">{label}</h2>
-        <p className="text-xs text-muted mb-4">Patterns for this column</p>
+        <h2 className="text-base font-semibold text-ink mb-4">{label}</h2>
         <ul className="space-y-2 max-h-[min(32rem,50vh)] overflow-y-auto pr-1">
           {lexicon[column].map((row, i) => (
             <li key={`${column}-${i}`} className="flex gap-2">

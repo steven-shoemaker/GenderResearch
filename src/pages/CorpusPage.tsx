@@ -1,7 +1,7 @@
 import { useMemo, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { CorpusSummary } from "../components/CorpusSummary";
-import { EntryScoreGlance } from "../components/EntryScoreGlance";
+import { GenderComparisonBar } from "../components/GenderComparisonBar";
 import { fetchEntries, fetchLexicon } from "../lib/api-client";
 import { computeCorpusStats } from "../lib/corpus-stats";
 import { exportEntriesCsv } from "../lib/export-csv";
@@ -168,9 +168,10 @@ export function CorpusPage() {
         </div>
       ) : (
         <div className="panel overflow-hidden">
-          <div className="hidden sm:flex items-center justify-end gap-6 px-6 py-2 border-b border-line text-[0.625rem] font-medium uppercase tracking-wide text-muted">
-            <span className="w-36 text-center">Language comparison</span>
-          </div>
+          <p className="px-5 py-3 sm:px-6 text-xs text-muted leading-relaxed border-b border-line">
+            Each row: bar is masculine vs feminine among gendered words only.
+            Percentages are share of all words in that posting.
+          </p>
           <ul className="divide-y divide-line">
             {visible.map((entry) => {
               const stale = lexicon ? entryIsStale(entry, lexicon) : false;
@@ -179,12 +180,12 @@ export function CorpusPage() {
                 <li key={entry.id}>
                   <Link
                     to={`/entry/${entry.id}`}
-                    className="group flex items-start justify-between gap-4 px-5 py-4 sm:px-6 sm:py-5 hover:bg-surface-hover transition-colors duration-200"
+                    className="group flex items-start justify-between gap-4 px-5 py-4 sm:px-6 sm:py-5 hover:bg-surface-hover motion-safe:transition-colors motion-safe:duration-200"
                     style={{ transitionTimingFunction: "var(--ease-out)" }}
                   >
                     <div className="min-w-0 flex-1 space-y-1">
                       <div className="flex items-center gap-2.5">
-                        <h2 className="font-medium text-ink truncate group-hover:text-accent transition-colors duration-200">
+                        <h2 className="font-medium text-ink truncate group-hover:text-accent motion-safe:transition-colors motion-safe:duration-200">
                           {entryTitle(entry)}
                         </h2>
                         {stale && (
@@ -203,9 +204,11 @@ export function CorpusPage() {
                       </p>
                     </div>
                     {a ? (
-                      <EntryScoreGlance
+                      <GenderComparisonBar
                         masculinePercent={a.masculinePercent}
                         femininePercent={a.femininePercent}
+                        size="sm"
+                        className="pointer-events-none"
                       />
                     ) : (
                       <span className="text-xs text-muted shrink-0 w-24 text-right">

@@ -59,6 +59,25 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Masculine / feminine: bg+text for highlights; bg-only for bar segments */
+@utility gender-masc-highlight {
+  background-color: var(--color-masc-bg);
+  color: var(--color-masc-text);
+}
+
+@utility gender-fem-highlight {
+  background-color: var(--color-fem-bg);
+  color: var(--color-fem-text);
+}
+
+@utility gender-masc-bar {
+  background-color: var(--color-masc-bg);
+}
+
+@utility gender-fem-bar {
+  background-color: var(--color-fem-bg);
+}
+
 @layer components {
   .panel {
     border-radius: var(--radius-lg);
@@ -83,9 +102,14 @@ body {
     font-size: 0.9375rem;
     line-height: 1.5;
     color: var(--color-ink);
-    transition:
-      border-color 180ms var(--ease-out),
-      box-shadow 180ms var(--ease-out);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .field-input {
+      transition:
+        border-color 180ms var(--ease-out),
+        box-shadow 180ms var(--ease-out);
+    }
   }
 
   .field-input::placeholder {
@@ -109,11 +133,23 @@ body {
     font-size: 0.875rem;
     font-weight: 600;
     line-height: 1.25;
-    transition:
-      background-color 180ms var(--ease-out),
-      color 180ms var(--ease-out),
-      border-color 180ms var(--ease-out),
-      opacity 180ms var(--ease-out);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .btn {
+      transition:
+        background-color 180ms var(--ease-out),
+        color 180ms var(--ease-out),
+        border-color 180ms var(--ease-out),
+        opacity 180ms var(--ease-out),
+        transform 120ms var(--ease-out);
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .btn:active:not(:disabled) {
+      transform: scale(0.98);
+    }
   }
 
   .btn:disabled {
@@ -163,7 +199,12 @@ body {
     color: var(--color-accent);
     font-weight: 500;
     text-underline-offset: 3px;
-    transition: color 180ms var(--ease-out);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .text-link {
+      transition: color 180ms var(--ease-out);
+    }
   }
 
   .text-link:hover {

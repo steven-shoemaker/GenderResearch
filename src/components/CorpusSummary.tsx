@@ -1,4 +1,4 @@
-import { formatPercent } from "../lib/analyze";
+import { GenderComparisonBar } from "./GenderComparisonBar";
 import { formatCorpusStats, type CorpusStats } from "../lib/corpus-stats";
 
 interface CorpusSummaryProps {
@@ -16,70 +16,47 @@ export function CorpusSummary({ stats, showArchived }: CorpusSummaryProps) {
     stats.femininePercent !== null;
 
   return (
-    <section
-      className="panel px-5 py-4 sm:px-6 sm:py-5"
-      aria-label="Collection summary"
-    >
-      <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-muted">
-        {showArchived ? "Archived collection" : "Collection"}
+    <section className="panel px-5 py-5 sm:px-6 sm:py-6" aria-label="Collection summary">
+      <h2 className="text-sm font-semibold text-ink">
+        {showArchived ? "Archived collection" : "Your collection"}
+      </h2>
+
+      <p className="mt-1 font-serif text-2xl font-semibold text-ink tabular-nums">
+        {entryLabel}
       </p>
-      <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="font-serif text-2xl font-semibold text-ink tabular-nums">
-            {entryLabel}
-          </p>
-          {hasScores && (
-            <p className="mt-1 text-sm text-muted tabular-nums">
-              {stats.totalWords.toLocaleString()} words across{" "}
-              {stats.analyzedCount === 1
-                ? "1 analyzed entry"
-                : `${stats.analyzedCount.toLocaleString()} analyzed entries`}
-              {stats.analyzedCount < stats.entryCount && (
-                <>
-                  {" "}
-                  ({stats.entryCount - stats.analyzedCount} without scores)
-                </>
-              )}
-            </p>
-          )}
-        </div>
-        {hasScores && (
-          <dl className="flex gap-6 sm:gap-8 tabular-nums">
-            <div>
-              <dt className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-muted">
-                Masculine %
-              </dt>
-              <dd className="font-serif text-2xl font-semibold text-masc-text">
-                {formatPercent(stats.masculinePercent!)}%
-              </dd>
-            </div>
-            <div>
-              <dt className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-muted">
-                Feminine %
-              </dt>
-              <dd className="font-serif text-2xl font-semibold text-fem-text">
-                {formatPercent(stats.femininePercent!)}%
-              </dd>
-            </div>
-          </dl>
-        )}
-      </div>
+
       {hasScores && (
-        <p className="mt-3 text-xs text-muted leading-relaxed border-t border-line pt-3">
-          Corpus-wide shares, weighted by word count in each saved job description.
-          {stats.staleCount > 0 && (
-            <>
-              {" "}
-              {stats.staleCount === 1
-                ? "1 entry has"
-                : `${stats.staleCount} entries have`}{" "}
-              outdated scores; recompute to refresh.
-            </>
+        <p className="mt-1 text-sm text-muted tabular-nums leading-relaxed">
+          {stats.totalWords.toLocaleString()} words across{" "}
+          {stats.analyzedCount === 1
+            ? "1 analyzed entry"
+            : `${stats.analyzedCount.toLocaleString()} analyzed entries`}
+          {stats.analyzedCount < stats.entryCount && (
+            <> ({stats.entryCount - stats.analyzedCount} without scores)</>
           )}
         </p>
       )}
+
+      {hasScores && (
+        <div className="mt-5">
+          <GenderComparisonBar
+            masculinePercent={stats.masculinePercent!}
+            femininePercent={stats.femininePercent!}
+            size="lg"
+            showLegend
+          />
+        </div>
+      )}
+
+      {hasScores && stats.staleCount > 0 && (
+        <p className="mt-3 text-xs text-warn-text leading-relaxed">
+          {stats.staleCount === 1 ? "1 entry has" : `${stats.staleCount} entries have`}{" "}
+          outdated scores. Open the entry and recompute to refresh collection totals.
+        </p>
+      )}
+
       {!hasScores && stats.entryCount > 0 && (
-        <p className="mt-2 text-sm text-muted">
+        <p className="mt-3 text-sm text-muted leading-relaxed">
           Open an entry and run Analyze to build collection totals.
         </p>
       )}
