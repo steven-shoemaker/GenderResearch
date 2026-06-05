@@ -36,6 +36,8 @@ export interface Entry {
   company: string;
   sourceUrl: string;
   capturedDate: string;
+  /** Annual salary in GBP, optional (for future analysis). */
+  salaryGbp: number | null;
   notes: string;
   analysis: AnalysisResult | null;
   bodyDirty: boolean;

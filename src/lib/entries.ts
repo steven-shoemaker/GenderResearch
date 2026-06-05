@@ -1,6 +1,10 @@
 import type { Entry } from "../types";
 import { newId, todayIsoDate } from "./utils";
 
+export function normalizeEntry(entry: Entry): Entry {
+  return { ...entry, salaryGbp: entry.salaryGbp ?? null };
+}
+
 export function createPreviewEntry(): Entry {
   const now = new Date().toISOString();
   return {
@@ -11,6 +15,7 @@ export function createPreviewEntry(): Entry {
     company: "",
     sourceUrl: "",
     capturedDate: todayIsoDate(),
+    salaryGbp: null,
     notes: "",
     analysis: null,
     bodyDirty: false,

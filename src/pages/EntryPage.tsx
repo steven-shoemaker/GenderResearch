@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useBlocker, useNavigate, useParams } from "react-router-dom";
 import {
   deleteAttachment,
@@ -9,7 +9,8 @@ import {
   uploadAttachment,
 } from "../lib/api-client";
 import { analyzeText } from "../lib/analyze";
-import { createPreviewEntry, entryTitle } from "../lib/entries";
+import { createPreviewEntry, entryTitle, normalizeEntry } from "../lib/entries";
+import { parseSalaryGbp, formatSalaryGbp } from "../lib/salary";
 import { entryIsStale, todayIsoDate } from "../lib/utils";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { HighlightedBody } from "../components/HighlightedBody";
@@ -46,6 +47,13 @@ export function EntryPage() {
     | { type: "removeAttachment"; attachmentId: string; saved: boolean }
   >(null);
 
+  /** Bypass unsaved-preview blocker for saves, discard, archive, delete. */
+  const allowNavigationRef = useRef(false);
+
+  useEffect(() => {
+    allowNavigationRef.current = false;
+  }, [id]);
+
   useEffect(() => {
     fetchLexicon()
       .then(setLexicon)
@@ -61,7 +69,7 @@ export function EntryPage() {
     if (!id) return;
     setLoading(true);
     fetchEntry(id)
-      .then(setEntry)
+      .then((e) => setEntry(normalizeEntry(e)))
       .catch(() => navigate("/", { replace: true }))
       .finally(() => setLoading(false));
   }, [id, isNew, navigate]);
@@ -78,7 +86,9 @@ export function EntryPage() {
 
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
-      dirtyPreview && currentLocation.pathname !== nextLocation.pathname,
+      !allowNavigationRef.current &&
+      dirtyPreview &&
+      currentLocation.pathname !== nextLocation.pathname,
   );
 
   const stale =
@@ -125,7 +135,7 @@ export function EntryPage() {
         updatedAt: new Date().toISOString(),
       };
       const saved = await apiSaveEntry(next);
-      setEntry(saved);
+      setEntry(normalizeEntry(saved));
     } catch {
       setError("Recompute failed. Try again.");
     } finally {
@@ -139,7 +149,7 @@ export function EntryPage() {
     }
     setPendingFiles([]);
     const refreshed = await fetchEntry(entryId);
-    setEntry(refreshed);
+    setEntry(normalizeEntry(refreshed));
   };
 
   const saveEntryAction = async () => {
@@ -153,10 +163,11 @@ export function EntryPage() {
         updatedAt: new Date().toISOString(),
       };
       const saved = await apiSaveEntry(toSave);
+      const normalized = normalizeEntry(saved);
+      allowNavigationRef.current = true;
+      setEntry(normalized);
       if (pendingFiles.length > 0) {
         await flushPendingUploads(saved.id);
-      } else {
-        setEntry(saved);
       }
       setSavedToast(true);
       setTimeout(() => setSavedToast(false), 3000);
@@ -183,7 +194,7 @@ export function EntryPage() {
     if (next.saved) {
       try {
         const saved = await apiSaveEntry(next);
-        setEntry(saved);
+        setEntry(normalizeEntry(saved));
       } catch {
         setError("Couldn't save details. Try again.");
       }
@@ -230,7 +241,7 @@ export function EntryPage() {
     try {
       await deleteAttachment(entry.id, attachmentId);
       const refreshed = await fetchEntry(entry.id);
-      setEntry(refreshed);
+      setEntry(normalizeEntry(refreshed));
     } catch {
       setError("Could not remove attachment.");
     }
@@ -238,6 +249,7 @@ export function EntryPage() {
   };
 
   const discard = () => {
+    allowNavigationRef.current = true;
     navigate("/");
     setConfirm(null);
   };
@@ -250,6 +262,7 @@ export function EntryPage() {
         archived: true,
         updatedAt: new Date().toISOString(),
       });
+      allowNavigationRef.current = true;
       navigate("/");
     } catch {
       setError("Could not archive entry.");
@@ -264,7 +277,7 @@ export function EntryPage() {
         archived: false,
         updatedAt: new Date().toISOString(),
       });
-      setEntry(saved);
+      setEntry(normalizeEntry(saved));
     } catch {
       setError("Could not restore entry.");
     }
@@ -274,6 +287,7 @@ export function EntryPage() {
     if (!entry) return;
     try {
       await removeEntry(entry.id);
+      allowNavigationRef.current = true;
       navigate("/");
     } catch {
       setError("Could not delete entry.");
@@ -389,6 +403,35 @@ export function EntryPage() {
                 void saveMetadata({ ...entry, capturedDate: e.target.value })
               }
             />
+          </Field>
+          <Field
+            label="Salary (optional)"
+            htmlFor="salary-gbp"
+            hint="Annual salary in pounds. Saved for possible analysis later."
+          >
+            <div className="relative">
+              <span
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted tabular-nums"
+                aria-hidden
+              >
+                £
+              </span>
+              <TextInput
+                id="salary-gbp"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="e.g. 45000"
+                className="pl-8 tabular-nums"
+                value={formatSalaryGbp(entry.salaryGbp ?? null)}
+                onChange={(e) =>
+                  void saveMetadata({
+                    ...entry,
+                    salaryGbp: parseSalaryGbp(e.target.value),
+                  })
+                }
+              />
+            </div>
           </Field>
           <div className="sm:col-span-2">
             <Field label="Notes" htmlFor="notes">
