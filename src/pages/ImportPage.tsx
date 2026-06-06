@@ -8,6 +8,7 @@ import {
 } from "../lib/api-client";
 import { analyzeText } from "../lib/analyze";
 import { entryImportKey, listingToEntry } from "../lib/import-jobs";
+import { ImportJobDrawer } from "../components/ImportJobDrawer";
 import { Field, TextInput } from "../components/ui/Field";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Toast } from "../components/ui/Toast";
@@ -35,6 +36,7 @@ export function ImportPage() {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [previewJob, setPreviewJob] = useState<ImportJobListing | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,6 +85,7 @@ export function ImportPage() {
         timeFrame: "7d",
       });
       setJobs(res.jobs);
+      setPreviewJob(null);
       if (res.jobs.length === 0) {
         setToast("No jobs matched. Try broader keywords or a different feed.");
       }
@@ -222,6 +225,7 @@ export function ImportPage() {
         </div>
         <p className="text-xs text-muted">
           Uses your Fantastic.jobs API key on the server. Jobs from the last 7 days; each result uses one API credit.
+          Click a row to preview the full description before importing.
         </p>
       </section>
 
@@ -283,12 +287,16 @@ export function ImportPage() {
                   {jobs.map((job) => {
                     const imported = importedKeys.has(jobKey(job));
                     const checked = selected.has(job.externalId);
+                    const isPreview = previewJob?.externalId === job.externalId;
                     return (
                       <tr
                         key={job.externalId}
-                        className={`border-t border-line ${imported ? "opacity-50" : "hover:bg-surface-hover"}`}
+                        onClick={() => setPreviewJob(job)}
+                        className={`border-t border-line cursor-pointer ${
+                          imported ? "opacity-50" : "hover:bg-surface-hover"
+                        } ${isPreview ? "bg-surface-hover" : ""}`}
                       >
-                        <td className="py-2.5 pl-4 pr-2 align-top">
+                        <td className="py-2.5 pl-4 pr-2 align-top" onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={checked}
@@ -325,6 +333,17 @@ export function ImportPage() {
           </div>
         </section>
       )}
+
+      <ImportJobDrawer
+        job={previewJob}
+        imported={previewJob ? importedKeys.has(jobKey(previewJob)) : false}
+        selected={previewJob ? selected.has(previewJob.externalId) : false}
+        importing={importing}
+        onClose={() => setPreviewJob(null)}
+        onToggleSelect={() => {
+          if (previewJob) toggleOne(previewJob.externalId);
+        }}
+      />
     </div>
   );
 }
