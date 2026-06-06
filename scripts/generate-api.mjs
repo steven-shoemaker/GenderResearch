@@ -128,6 +128,17 @@ function pickIndustry(j) {
 function pickDescription(j) {
   return pickStr(j.description_text) || pickStr(j.description) || pickStr(j.description_html);
 }
+function pickSourceSite(j) {
+  const source = pickStr(j.source);
+  if (source) return source;
+  const domain = pickStr(j.source_domain);
+  if (domain) return domain.replace(/^www\\./i, "");
+  const postingUrl = pickStr(j.url);
+  if (postingUrl) {
+    try { return new URL(postingUrl).hostname.replace(/^www\\./i, ""); } catch {}
+  }
+  return "";
+}
 function pickLocation(j) {
   if (Array.isArray(j.locations_derived) && j.locations_derived[0]) {
     const loc = j.locations_derived[0];
@@ -173,6 +184,8 @@ function mapFantasticJob(j) {
     salaryGbp: annualGbpFromJob(j),
     postedAt: pickStr(j.date_posted) || null,
     location: pickLocation(j),
+    sourceSite: pickSourceSite(j),
+    importSource: "fantastic-jobs",
   };
 }
 export async function OPTIONS() { return opts(); }
@@ -182,12 +195,14 @@ export async function GET(req) {
     if (!key) return err("Set FANTASTIC_JOBS_API_KEY in the environment.", 503);
     const url = new URL(req.url);
     const feed = url.searchParams.get("feed") === "jb" ? "v1/active-jb" : "v1/active-ats";
-    const limitRaw = Number(url.searchParams.get("limit") || "25");
-    const limit = Math.min(100, Math.max(1, Number.isFinite(limitRaw) ? limitRaw : 25));
+    const limitRaw = Number(url.searchParams.get("limit") || "100");
+    const limit = Math.min(100, Math.max(1, Number.isFinite(limitRaw) ? limitRaw : 100));
+    const offsetRaw = Number(url.searchParams.get("offset") || "0");
+    const offset = Math.max(0, Number.isFinite(offsetRaw) ? offsetRaw : 0);
     const params = new URLSearchParams();
     params.set("time_frame", url.searchParams.get("time_frame") || "7d");
     params.set("limit", String(limit));
-    params.set("offset", url.searchParams.get("offset") || "0");
+    params.set("offset", String(offset));
     params.set("description_format", "text");
     params.set("location", url.searchParams.get("location") || "United Kingdom");
     if (feed === "v1/active-ats") params.set("include_basic_organization_details", "true");
@@ -209,7 +224,16 @@ export async function GET(req) {
     }
     const rows = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
     const jobs = rows.map(mapFantasticJob).filter(Boolean);
-    return json({ jobs, feed, count: jobs.length });
+    return json({
+      jobs,
+      feed,
+      count: jobs.length,
+      offset,
+      limit,
+      upstreamCount: rows.length,
+      skippedWithoutDescription: rows.length - jobs.length,
+      hasMore: rows.length >= limit,
+    });
   } catch (e) { return err(e instanceof Error ? e.message : "Job search failed"); }
 }
 `,

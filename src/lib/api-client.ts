@@ -14,6 +14,11 @@ export interface JobSearchResponse {
   jobs: ImportJobListing[];
   feed: string;
   count: number;
+  offset: number;
+  limit: number;
+  upstreamCount: number;
+  skippedWithoutDescription: number;
+  hasMore: boolean;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {

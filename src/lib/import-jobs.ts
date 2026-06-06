@@ -31,7 +31,7 @@ export function listingToEntry(
     capturedDate: captured,
     industry: listing.industry,
     externalJobId: listing.externalId,
-    importSource: "fantastic-jobs",
+    importSource: listing.importSource,
     salaryGbp: listing.salaryGbp,
     notes,
     analysis,

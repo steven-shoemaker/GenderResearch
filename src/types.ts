@@ -39,6 +39,9 @@ export interface ImportJobListing {
   salaryGbp: number | null;
   postedAt: string | null;
   location: string;
+  /** ATS platform or job board (e.g. greenhouse, linkedin, workday). */
+  sourceSite: string;
+  importSource: "fantastic-jobs";
 }
 
 export interface Entry {

@@ -112,11 +112,12 @@ export function ImportJobDrawer({
           <dl className="space-y-3">
             <MetaRow label="Company">{job.company || "—"}</MetaRow>
             <MetaRow label="Industry">{job.industry || "—"}</MetaRow>
+            <MetaRow label="Source site">{job.sourceSite || "—"}</MetaRow>
             <MetaRow label="Location">{job.location || "—"}</MetaRow>
             <MetaRow label="Salary">{formatSalary(job.salaryGbp)}</MetaRow>
             <MetaRow label="Posted">{formatPosted(job.postedAt)}</MetaRow>
             {job.sourceUrl && (
-              <MetaRow label="Source">
+              <MetaRow label="Posting">
                 <a
                   href={job.sourceUrl}
                   target="_blank"
@@ -132,7 +133,9 @@ export function ImportJobDrawer({
           <section className="space-y-2">
             <h3 className="text-sm font-semibold text-ink">Job description</h3>
             <div className="panel-inset px-4 py-3 text-[0.9375rem] leading-[1.65] text-ink whitespace-pre-wrap max-h-[min(50vh,28rem)] overflow-y-auto">
-              {job.description}
+              {job.description || (
+                <p className="text-muted text-sm">No description available.</p>
+              )}
             </div>
           </section>
         </div>

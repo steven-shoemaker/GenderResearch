@@ -7,12 +7,22 @@ import {
   searchImportJobs,
 } from "../lib/api-client";
 import { analyzeText } from "../lib/analyze";
-import { entryImportKey, listingToEntry } from "../lib/import-jobs";
+import { entryImportKey, importJobKey, listingToEntry } from "../lib/import-jobs";
 import { ImportJobDrawer } from "../components/ImportJobDrawer";
 import { Field, TextInput } from "../components/ui/Field";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Toast } from "../components/ui/Toast";
 import type { ImportJobListing, Lexicon } from "../types";
+
+const IMPORT_PAGE_SIZE = 100;
+
+function mergeJobResults(
+  prev: ImportJobListing[],
+  incoming: ImportJobListing[],
+): ImportJobListing[] {
+  const ids = new Set(prev.map((j) => j.externalId));
+  return [...prev, ...incoming.filter((j) => !ids.has(j.externalId))];
+}
 
 function formatSalary(gbp: number | null): string {
   if (gbp == null) return "—";
@@ -37,6 +47,10 @@ export function ImportPage() {
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [previewJob, setPreviewJob] = useState<ImportJobListing | null>(null);
+  const [nextOffset, setNextOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [skippedLastPage, setSkippedLastPage] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,7 +75,7 @@ export function ImportPage() {
   }, []);
 
   const jobKey = useCallback(
-    (job: ImportJobListing) => `fantastic-jobs:${job.externalId}`,
+    (job: ImportJobListing) => importJobKey(job.importSource, job.externalId),
     [],
   );
 
@@ -70,21 +84,32 @@ export function ImportPage() {
     [jobs, importedKeys, jobKey],
   );
 
+  const searchParams = useMemo(
+    () => ({
+      title: title.trim() || undefined,
+      industry: industry.trim() || undefined,
+      location: location.trim() || "United Kingdom",
+      limit: IMPORT_PAGE_SIZE,
+      feed,
+      timeFrame: "7d" as const,
+    }),
+    [title, industry, location, feed],
+  );
+
   const runSearch = async () => {
     setLoading(true);
     setError(null);
     setToast(null);
     setSelected(new Set());
+    setNextOffset(0);
+    setHasMore(false);
+    setSkippedLastPage(0);
     try {
-      const res = await searchImportJobs({
-        title: title.trim() || undefined,
-        industry: industry.trim() || undefined,
-        location: location.trim() || "United Kingdom",
-        limit: 50,
-        feed,
-        timeFrame: "7d",
-      });
+      const res = await searchImportJobs({ ...searchParams, offset: 0 });
       setJobs(res.jobs);
+      setNextOffset(res.offset + res.upstreamCount);
+      setHasMore(res.hasMore);
+      setSkippedLastPage(res.skippedWithoutDescription);
       setPreviewJob(null);
       if (res.jobs.length === 0) {
         setToast("No jobs matched. Try broader keywords or a different feed.");
@@ -94,6 +119,23 @@ export function ImportPage() {
       setError(e instanceof Error ? e.message : "Job search failed.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMore = async () => {
+    if (!hasMore || loadingMore || loading) return;
+    setLoadingMore(true);
+    setError(null);
+    try {
+      const res = await searchImportJobs({ ...searchParams, offset: nextOffset });
+      setJobs((prev) => mergeJobResults(prev, res.jobs));
+      setNextOffset((prev) => prev + res.upstreamCount);
+      setHasMore(res.hasMore);
+      setSkippedLastPage(res.skippedWithoutDescription);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not load more jobs.");
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -224,17 +266,25 @@ export function ImportPage() {
           </button>
         </div>
         <p className="text-xs text-muted">
-          Uses your Fantastic.jobs API key on the server. Jobs from the last 7 days; each result uses one API credit.
-          Click a row to preview the full description before importing.
+          Fetches up to {IMPORT_PAGE_SIZE} jobs per request from the last 7 days (one API credit per job
+          returned). Use Load more for additional pages. Click a row to preview the full description.
         </p>
       </section>
 
       {jobs.length > 0 && (
         <section className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-base font-semibold text-ink">
-              Results <span className="text-muted font-normal">({jobs.length})</span>
-            </h2>
+            <div>
+              <h2 className="text-base font-semibold text-ink">
+                Results <span className="text-muted font-normal">({jobs.length})</span>
+              </h2>
+              {skippedLastPage > 0 && (
+                <p className="text-xs text-muted mt-0.5">
+                  {skippedLastPage} listing{skippedLastPage === 1 ? "" : "s"} on the last page had no
+                  description and were skipped.
+                </p>
+              )}
+            </div>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
@@ -272,11 +322,14 @@ export function ImportPage() {
                     <th scope="col" className="py-2.5 px-2">
                       Title
                     </th>
-                    <th scope="col" className="py-2.5 px-2 hidden md:table-cell">
+                    <th scope="col" className="py-2.5 px-2 hidden sm:table-cell">
                       Company
                     </th>
                     <th scope="col" className="py-2.5 px-2 hidden lg:table-cell">
                       Industry
+                    </th>
+                    <th scope="col" className="py-2.5 px-2">
+                      Source
                     </th>
                     <th scope="col" className="py-2.5 px-2 whitespace-nowrap">
                       Salary
@@ -315,11 +368,16 @@ export function ImportPage() {
                             <div className="text-xs text-muted mt-0.5">Already imported</div>
                           )}
                         </td>
-                        <td className="py-2.5 px-2 align-top hidden md:table-cell text-muted">
+                        <td className="py-2.5 px-2 align-top hidden sm:table-cell text-muted">
                           {job.company || "—"}
                         </td>
                         <td className="py-2.5 px-2 align-top hidden lg:table-cell text-muted">
                           {job.industry || "—"}
+                        </td>
+                        <td className="py-2.5 px-2 align-top text-muted max-w-[10rem] sm:max-w-[12rem]">
+                          <span className="block truncate" title={job.sourceSite || undefined}>
+                            {job.sourceSite || "—"}
+                          </span>
                         </td>
                         <td className="py-2.5 px-2 align-top tabular-nums text-muted whitespace-nowrap">
                           {formatSalary(job.salaryGbp)}
@@ -331,6 +389,18 @@ export function ImportPage() {
               </table>
             </div>
           </div>
+          {hasMore && (
+            <div className="flex justify-center pt-1">
+              <button
+                type="button"
+                onClick={() => void loadMore()}
+                disabled={loadingMore || importing}
+                className="btn btn-secondary"
+              >
+                {loadingMore ? "Loading…" : `Load more (next ${IMPORT_PAGE_SIZE})`}
+              </button>
+            </div>
+          )}
         </section>
       )}
 
