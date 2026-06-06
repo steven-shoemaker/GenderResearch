@@ -383,6 +383,18 @@ export function EntryPage() {
               onChange={(e) => void saveMetadata({ ...entry, company: e.target.value })}
             />
           </Field>
+          <Field
+            label="Industry"
+            htmlFor="industry"
+            hint="Employer industry when imported from a job feed."
+          >
+            <TextInput
+              id="industry"
+              value={entry.industry}
+              onChange={(e) => void saveMetadata({ ...entry, industry: e.target.value })}
+              placeholder="Optional"
+            />
+          </Field>
           <div className="sm:col-span-2">
             <Field label="Source URL" htmlFor="source-url">
               <TextInput

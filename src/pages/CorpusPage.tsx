@@ -23,6 +23,7 @@ function filterEntries(
       (e) =>
         entryTitle(e).toLowerCase().includes(q) ||
         e.company.toLowerCase().includes(q) ||
+        (e.industry ?? "").toLowerCase().includes(q) ||
         e.notes.toLowerCase().includes(q) ||
         e.bodyText.toLowerCase().includes(q),
     );
@@ -153,6 +154,9 @@ export function CorpusPage() {
             >
               Export CSV
             </button>
+            <Link to="/import" className="btn btn-secondary">
+              Import jobs
+            </Link>
             <Link to="/entry/new" className="btn btn-primary">
               New entry
             </Link>

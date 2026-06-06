@@ -28,6 +28,19 @@ export interface AttachmentMeta {
   pathname?: string;
 }
 
+/** Normalized job row from Fantastic.jobs (via our API proxy). */
+export interface ImportJobListing {
+  externalId: string;
+  title: string;
+  company: string;
+  industry: string;
+  description: string;
+  sourceUrl: string;
+  salaryGbp: number | null;
+  postedAt: string | null;
+  location: string;
+}
+
 export interface Entry {
   id: string;
   saved: boolean;
@@ -36,6 +49,11 @@ export interface Entry {
   company: string;
   sourceUrl: string;
   capturedDate: string;
+  /** LinkedIn-style industry when imported from a job feed. */
+  industry: string;
+  /** External job id for dedup (e.g. Fantastic.jobs). */
+  externalJobId: string | null;
+  importSource: string | null;
   /** Annual salary in GBP, optional (for future analysis). */
   salaryGbp: number | null;
   notes: string;

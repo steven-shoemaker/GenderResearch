@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 export function Layout() {
   const { pathname } = useLocation();
   const onLexicon = pathname === "/word-list";
+  const onImport = pathname === "/import";
   const onEntry = pathname.startsWith("/entry");
 
   return (
@@ -27,6 +28,17 @@ export function Layout() {
               style={{ transitionTimingFunction: "var(--ease-out)" }}
             >
               Entries
+            </Link>
+            <Link
+              to="/import"
+              className={`rounded-md px-3 py-2 min-h-11 inline-flex items-center transition-colors duration-200 ${
+                onImport
+                  ? "text-ink bg-surface-hover"
+                  : "text-muted hover:text-ink hover:bg-surface-hover"
+              }`}
+              style={{ transitionTimingFunction: "var(--ease-out)" }}
+            >
+              Import
             </Link>
             <Link
               to="/word-list"

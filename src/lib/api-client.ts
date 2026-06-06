@@ -1,4 +1,20 @@
-import type { AttachmentMeta, Entry, Lexicon } from "../types";
+import type { AttachmentMeta, Entry, ImportJobListing, Lexicon } from "../types";
+
+export interface JobSearchParams {
+  title?: string;
+  industry?: string;
+  location?: string;
+  limit?: number;
+  offset?: number;
+  feed?: "ats" | "jb";
+  timeFrame?: "1h" | "24h" | "7d" | "6m";
+}
+
+export interface JobSearchResponse {
+  jobs: ImportJobListing[];
+  feed: string;
+  count: number;
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, init);
@@ -55,6 +71,20 @@ export async function uploadAttachment(
     method: "POST",
     body: form,
   });
+}
+
+export async function searchImportJobs(
+  params: JobSearchParams,
+): Promise<JobSearchResponse> {
+  const q = new URLSearchParams();
+  if (params.title) q.set("title", params.title);
+  if (params.industry) q.set("industry", params.industry);
+  if (params.location) q.set("location", params.location);
+  if (params.limit != null) q.set("limit", String(params.limit));
+  if (params.offset != null) q.set("offset", String(params.offset));
+  if (params.feed) q.set("feed", params.feed);
+  if (params.timeFrame) q.set("time_frame", params.timeFrame);
+  return request<JobSearchResponse>(`/api/jobs/search?${q}`);
 }
 
 export async function deleteAttachment(

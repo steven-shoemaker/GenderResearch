@@ -2,7 +2,13 @@ import type { Entry } from "../types";
 import { newId, todayIsoDate } from "./utils";
 
 export function normalizeEntry(entry: Entry): Entry {
-  return { ...entry, salaryGbp: entry.salaryGbp ?? null };
+  return {
+    ...entry,
+    salaryGbp: entry.salaryGbp ?? null,
+    industry: entry.industry ?? "",
+    externalJobId: entry.externalJobId ?? null,
+    importSource: entry.importSource ?? null,
+  };
 }
 
 export function createPreviewEntry(): Entry {
@@ -15,6 +21,9 @@ export function createPreviewEntry(): Entry {
     company: "",
     sourceUrl: "",
     capturedDate: todayIsoDate(),
+    industry: "",
+    externalJobId: null,
+    importSource: null,
     salaryGbp: null,
     notes: "",
     analysis: null,
