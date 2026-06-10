@@ -1,13 +1,16 @@
 import type { AttachmentMeta, Entry, ImportJobListing, Lexicon } from "../types";
 
+export type JobSearchTimeFrame = "24h" | "7d" | "6m";
+
 export interface JobSearchParams {
   title?: string;
   industry?: string;
   location?: string;
   limit?: number;
   offset?: number;
+  cursor?: string;
   feed?: "ats" | "jb";
-  timeFrame?: "1h" | "24h" | "7d" | "6m";
+  timeFrame?: JobSearchTimeFrame;
 }
 
 export interface JobSearchResponse {
@@ -16,9 +19,11 @@ export interface JobSearchResponse {
   count: number;
   offset: number;
   limit: number;
+  timeFrame: string;
   upstreamCount: number;
   skippedWithoutDescription: number;
   hasMore: boolean;
+  nextCursor: string | null;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -87,6 +92,7 @@ export async function searchImportJobs(
   if (params.location) q.set("location", params.location);
   if (params.limit != null) q.set("limit", String(params.limit));
   if (params.offset != null) q.set("offset", String(params.offset));
+  if (params.cursor) q.set("cursor", params.cursor);
   if (params.feed) q.set("feed", params.feed);
   if (params.timeFrame) q.set("time_frame", params.timeFrame);
   return request<JobSearchResponse>(`/api/jobs/search?${q}`);

@@ -199,10 +199,14 @@ export async function GET(req) {
     const limit = Math.min(100, Math.max(1, Number.isFinite(limitRaw) ? limitRaw : 100));
     const offsetRaw = Number(url.searchParams.get("offset") || "0");
     const offset = Math.max(0, Number.isFinite(offsetRaw) ? offsetRaw : 0);
+    const tf = url.searchParams.get("time_frame") || "7d";
+    const timeFrame = tf === "1h" || tf === "24h" || tf === "7d" || tf === "6m" ? tf : "7d";
+    const cursor = url.searchParams.get("cursor")?.trim() || "";
     const params = new URLSearchParams();
-    params.set("time_frame", url.searchParams.get("time_frame") || "7d");
+    params.set("time_frame", timeFrame);
     params.set("limit", String(limit));
-    params.set("offset", String(offset));
+    if (timeFrame === "6m") params.set("cursor", cursor || "1");
+    else params.set("offset", String(offset));
     params.set("description_format", "text");
     params.set("location", url.searchParams.get("location") || "United Kingdom");
     if (feed === "v1/active-ats") params.set("include_basic_organization_details", "true");
@@ -224,15 +228,19 @@ export async function GET(req) {
     }
     const rows = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
     const jobs = rows.map(mapFantasticJob).filter(Boolean);
+    const lastRow = rows[rows.length - 1];
+    const nextCursor = timeFrame === "6m" && lastRow?.id != null ? String(lastRow.id) : null;
     return json({
       jobs,
       feed,
       count: jobs.length,
       offset,
       limit,
+      timeFrame,
       upstreamCount: rows.length,
       skippedWithoutDescription: rows.length - jobs.length,
       hasMore: rows.length >= limit,
+      nextCursor,
     });
   } catch (e) { return err(e instanceof Error ? e.message : "Job search failed"); }
 }

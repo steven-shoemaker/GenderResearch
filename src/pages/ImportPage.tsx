@@ -12,7 +12,14 @@ import { ImportJobDrawer } from "../components/ImportJobDrawer";
 import { Field, TextInput } from "../components/ui/Field";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Toast } from "../components/ui/Toast";
+import type { JobSearchTimeFrame } from "../lib/api-client";
 import type { ImportJobListing, Lexicon } from "../types";
+
+const TIME_FRAME_OPTIONS: { value: JobSearchTimeFrame; label: string }[] = [
+  { value: "24h", label: "Last 24 hours" },
+  { value: "7d", label: "Last 7 days" },
+  { value: "6m", label: "Last 6 months" },
+];
 
 const IMPORT_PAGE_SIZE = 100;
 
@@ -34,6 +41,7 @@ export function ImportPage() {
   const [industry, setIndustry] = useState("");
   const [location, setLocation] = useState("United Kingdom");
   const [feed, setFeed] = useState<"ats" | "jb">("ats");
+  const [timeFrame, setTimeFrame] = useState<JobSearchTimeFrame>("7d");
   const [jobs, setJobs] = useState<ImportJobListing[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [importedKeys, setImportedKeys] = useState<Set<string>>(new Set());
@@ -48,6 +56,7 @@ export function ImportPage() {
   const [toast, setToast] = useState<string | null>(null);
   const [previewJob, setPreviewJob] = useState<ImportJobListing | null>(null);
   const [nextOffset, setNextOffset] = useState(0);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [skippedLastPage, setSkippedLastPage] = useState(0);
@@ -91,9 +100,9 @@ export function ImportPage() {
       location: location.trim() || "United Kingdom",
       limit: IMPORT_PAGE_SIZE,
       feed,
-      timeFrame: "7d" as const,
+      timeFrame,
     }),
-    [title, industry, location, feed],
+    [title, industry, location, feed, timeFrame],
   );
 
   const runSearch = async () => {
@@ -102,12 +111,14 @@ export function ImportPage() {
     setToast(null);
     setSelected(new Set());
     setNextOffset(0);
+    setNextCursor(null);
     setHasMore(false);
     setSkippedLastPage(0);
     try {
       const res = await searchImportJobs({ ...searchParams, offset: 0 });
       setJobs(res.jobs);
       setNextOffset(res.offset + res.upstreamCount);
+      setNextCursor(res.nextCursor);
       setHasMore(res.hasMore);
       setSkippedLastPage(res.skippedWithoutDescription);
       setPreviewJob(null);
@@ -127,9 +138,14 @@ export function ImportPage() {
     setLoadingMore(true);
     setError(null);
     try {
-      const res = await searchImportJobs({ ...searchParams, offset: nextOffset });
+      const res = await searchImportJobs(
+        timeFrame === "6m" && nextCursor
+          ? { ...searchParams, cursor: nextCursor }
+          : { ...searchParams, offset: nextOffset },
+      );
       setJobs((prev) => mergeJobResults(prev, res.jobs));
       setNextOffset((prev) => prev + res.upstreamCount);
+      setNextCursor(res.nextCursor);
       setHasMore(res.hasMore);
       setSkippedLastPage(res.skippedWithoutDescription);
     } catch (e) {
@@ -254,6 +270,24 @@ export function ImportPage() {
               <option value="jb">Job boards (LinkedIn, etc.)</option>
             </select>
           </Field>
+          <Field
+            label="Posted within"
+            htmlFor="import-time-frame"
+            hint="Fantastic.jobs window — 6 months uses cursor pagination (slower backfill)"
+          >
+            <select
+              id="import-time-frame"
+              value={timeFrame}
+              onChange={(e) => setTimeFrame(e.target.value as JobSearchTimeFrame)}
+              className="w-full rounded-md border border-line bg-paper px-3 py-2.5 text-sm text-ink min-h-11 focus:outline-none focus:ring-2 focus:ring-accent/30"
+            >
+              {TIME_FRAME_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </Field>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
@@ -266,8 +300,8 @@ export function ImportPage() {
           </button>
         </div>
         <p className="text-xs text-muted">
-          Fetches up to {IMPORT_PAGE_SIZE} jobs per request from the last 7 days (one API credit per job
-          returned). Use Load more for additional pages. Click a row to preview the full description.
+          Fetches up to {IMPORT_PAGE_SIZE} jobs per request from the selected time window (one API credit per
+          job returned). Use Load more for additional pages. Click a row to preview the full description.
         </p>
       </section>
 
