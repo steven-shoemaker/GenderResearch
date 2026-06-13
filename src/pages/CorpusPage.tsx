@@ -270,59 +270,63 @@ export function CorpusPage() {
         title="Entries"
         description="Paste job descriptions, analyze gendered language, and save your research."
         action={
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => void handleBackupNow()}
-              disabled={loading || backingUp || restoring || recomputingAll || entries.length === 0}
-              className="btn btn-secondary"
-              title="Save a timestamped snapshot to cloud storage (entries, lexicon, and PDF attachments)"
-            >
-              {backingUp ? "Backing up…" : "Back up now"}
-            </button>
-            <button
-              type="button"
-              onClick={handleDownloadJson}
-              disabled={loading || entries.length === 0 || recomputingAll}
-              className="btn btn-secondary"
-              title="Download entries JSON to your computer (PDF files are not included — use Back up now for those)"
-            >
-              Download JSON
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowRestoreConfirm(true)}
-              disabled={
-                loading ||
-                restoring ||
-                backingUp ||
-                recomputingAll ||
-                (backupStatus?.rollingEntryCount ?? 0) === 0
-              }
-              className="btn btn-secondary"
-              title="Replace current entries with the latest cloud backup"
-            >
-              {restoring ? "Restoring…" : "Restore backup"}
-            </button>
-            <button
-              type="button"
-              onClick={handleExportCsv}
-              disabled={loading || exportableCount === 0 || recomputingAll}
-              className="btn btn-secondary"
-              title={
-                exportableCount === 0
-                  ? "No entries to export"
-                  : "Download collection as CSV"
-              }
-            >
-              Export CSV
-            </button>
-            <Link to="/import" className="btn btn-secondary">
-              Import jobs
-            </Link>
-            <Link to="/entry/new" className="btn btn-primary">
-              New entry
-            </Link>
+          <div className="flex w-full flex-col gap-3 sm:items-end">
+            <div className="flex flex-wrap gap-2">
+              <Link to="/entry/new" className="btn btn-primary">
+                New entry
+              </Link>
+              <Link to="/import" className="btn btn-secondary">
+                Import jobs
+              </Link>
+            </div>
+            <div className="flex flex-wrap gap-2 border-t border-line pt-3 sm:justify-end">
+              <button
+                type="button"
+                onClick={() => void handleBackupNow()}
+                disabled={loading || backingUp || restoring || recomputingAll || entries.length === 0}
+                className="btn btn-secondary text-sm"
+                title="Save a timestamped snapshot to cloud storage (entries, lexicon, and PDF attachments)"
+              >
+                {backingUp ? "Backing up…" : "Back up now"}
+              </button>
+              <button
+                type="button"
+                onClick={handleDownloadJson}
+                disabled={loading || entries.length === 0 || recomputingAll}
+                className="btn btn-secondary text-sm"
+                title="Download entries JSON to your computer (PDF files are not included — use Back up now for those)"
+              >
+                Download JSON
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowRestoreConfirm(true)}
+                disabled={
+                  loading ||
+                  restoring ||
+                  backingUp ||
+                  recomputingAll ||
+                  (backupStatus?.rollingEntryCount ?? 0) === 0
+                }
+                className="btn btn-secondary text-sm"
+                title="Replace current entries with the latest cloud backup"
+              >
+                {restoring ? "Restoring…" : "Restore backup"}
+              </button>
+              <button
+                type="button"
+                onClick={handleExportCsv}
+                disabled={loading || exportableCount === 0 || recomputingAll}
+                className="btn btn-secondary text-sm"
+                title={
+                  exportableCount === 0
+                    ? "No entries to export"
+                    : "Download collection as CSV"
+                }
+              >
+                Export CSV
+              </button>
+            </div>
           </div>
         }
       />
