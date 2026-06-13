@@ -49,6 +49,68 @@ async function delEntryAttachments(eid) { const { list, del } = await import("@v
 function snapshotStamp(d) { const x = d ?? new Date(); return x.toISOString().replace(/[:.]/g, "-").slice(0, 19) + "Z"; }
 async function readManifest() { return (await readJson(BACKUP_MANIFEST_BLOB, null)) ?? { lastSyncAt: null, entryCount: 0, snapshots: [] }; }
 async function deleteBlobPath(pathname) { const { list, del } = await import("@vercel/blob"); const { blobs } = await list({ prefix: pathname, limit: 1, token: tok() }); const m = blobs.find((b) => b.pathname === pathname); if (m?.url) await del(m.url, { token: tok() }); }
+function attachmentBackupPath(stamp, eid, aid, fn) {
+  return BACKUPS_PREFIX + stamp + "/attachments/" + eid + "/" + aid + "-" + fn.replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+async function copyBlobFromUrl(sourceUrl, destPathname, contentType) {
+  const r = await fetch(sourceUrl, { cache: "no-store" });
+  if (!r.ok) throw new Error("Failed to fetch blob (HTTP " + r.status + ")");
+  const buf = await r.arrayBuffer();
+  const { put } = await import("@vercel/blob");
+  const blob = await put(destPathname, buf, {
+    access: "public",
+    addRandomSuffix: false,
+    allowOverwrite: true,
+    contentType: contentType || "application/octet-stream",
+    token: tok(),
+  });
+  return { url: blob.url, pathname: blob.pathname };
+}
+async function deleteBackupAttachmentTree(stamp) {
+  const { list, del } = await import("@vercel/blob");
+  const prefix = BACKUPS_PREFIX + stamp + "/attachments/";
+  let cursor;
+  do {
+    const page = await list({ prefix, token: tok(), cursor });
+    await Promise.all(page.blobs.map((b) => del(b.url, { token: tok() })));
+    cursor = page.hasMore ? page.cursor : undefined;
+  } while (cursor);
+}
+async function backupAttachments(stamp, entries) {
+  let attachmentCount = 0;
+  for (const entry of entries) {
+    const attachments = Array.isArray(entry.attachments) ? entry.attachments : [];
+    for (const a of attachments) {
+      if (!a?.url || !a.id || !a.fileName) continue;
+      const dest = attachmentBackupPath(stamp, entry.id, a.id, a.fileName);
+      await copyBlobFromUrl(a.url, dest, a.mimeType || "application/pdf");
+      attachmentCount++;
+    }
+  }
+  return attachmentCount;
+}
+async function restoreAttachments(stamp, entries) {
+  let attachmentCount = 0;
+  const restored = [];
+  for (const entry of entries) {
+    const attachments = Array.isArray(entry.attachments) ? entry.attachments : [];
+    const nextAttachments = [];
+    for (const a of attachments) {
+      if (!a?.id || !a.fileName) { nextAttachments.push(a); continue; }
+      const backupPath = attachmentBackupPath(stamp, entry.id, a.id, a.fileName);
+      const { list } = await import("@vercel/blob");
+      const { blobs } = await list({ prefix: backupPath, limit: 1, token: tok() });
+      const backup = blobs.find((b) => b.pathname === backupPath);
+      if (!backup?.url) { nextAttachments.push(a); continue; }
+      const livePath = attachPath(entry.id, a.id, a.fileName);
+      const copied = await copyBlobFromUrl(backup.url, livePath, a.mimeType || "application/pdf");
+      nextAttachments.push({ ...a, url: copied.url, pathname: copied.pathname });
+      attachmentCount++;
+    }
+    restored.push({ ...entry, attachments: nextAttachments });
+  }
+  return { entries: restored, attachmentCount };
+}
 async function syncEntriesBackup(trigger) {
   const entries = await getEntries();
   const lexicon = await getLexicon();
@@ -59,34 +121,54 @@ async function syncEntriesBackup(trigger) {
   if (entries.length) await writeJson(ENTRIES_BACKUP_BLOB, entries);
   if (entries.length) await writeJson(entriesSnapshot, entries);
   await writeJson(lexiconSnapshot, lexicon);
+  let attachmentCount = 0;
+  if (entries.length) {
+    attachmentCount = await backupAttachments("rolling", entries);
+    await backupAttachments(stamp, entries);
+  }
   const manifest = await readManifest();
   const snapshots = Array.isArray(manifest.snapshots) ? manifest.snapshots : [];
-  snapshots.unshift({ id: stamp, createdAt: now.toISOString(), entryCount: entries.length, trigger: trigger || "manual" });
+  snapshots.unshift({
+    id: stamp,
+    createdAt: now.toISOString(),
+    entryCount: entries.length,
+    attachmentCount,
+    trigger: trigger || "manual",
+  });
   const pruned = snapshots.slice(MAX_SNAPSHOTS);
   for (const s of snapshots.slice(MAX_SNAPSHOTS)) {
     await deleteBlobPath(BACKUPS_PREFIX + "entries-" + s.id + ".json");
     await deleteBlobPath(BACKUPS_PREFIX + "lexicon-" + s.id + ".json");
+    await deleteBackupAttachmentTree(s.id);
   }
-  const next = { lastSyncAt: now.toISOString(), entryCount: entries.length, rollingEntryCount: entries.length, snapshots: pruned };
+  const next = {
+    lastSyncAt: now.toISOString(),
+    entryCount: entries.length,
+    attachmentCount,
+    rollingEntryCount: entries.length,
+    snapshots: pruned,
+  };
   await writeJson(BACKUP_MANIFEST_BLOB, next);
   return next;
 }
 async function restoreEntries(source) {
   let entries = null;
-  let used = source;
+  let stamp = source;
   if (source === "rolling") {
     entries = await readJson(ENTRIES_BACKUP_BLOB, null);
+    stamp = "rolling";
   } else {
     const manifest = await readManifest();
     const snap = source === "latest" ? manifest.snapshots?.[0] : (manifest.snapshots || []).find((s) => s.id === source);
     if (!snap) throw new Error("Backup snapshot not found");
     entries = await readJson(BACKUPS_PREFIX + "entries-" + snap.id + ".json", null);
-    used = snap.id;
+    stamp = snap.id;
   }
   if (!Array.isArray(entries)) throw new Error("Backup is empty or unreadable");
   if (!entries.length) throw new Error("Backup contains no entries");
-  await writeJson(ENTRIES_BLOB, entries);
-  return { restored: entries.length, source: used };
+  const { entries: withAttachments, attachmentCount } = await restoreAttachments(stamp, entries);
+  await writeJson(ENTRIES_BLOB, withAttachments);
+  return { restored: withAttachments.length, attachments: attachmentCount, source: stamp };
 }
 function cronAuthorized(req) {
   const secret = process.env.CRON_SECRET?.trim();

@@ -112,12 +112,14 @@ export interface BackupSnapshot {
   id: string;
   createdAt: string;
   entryCount: number;
+  attachmentCount?: number;
   trigger: string;
 }
 
 export interface BackupStatus {
   lastSyncAt: string | null;
   entryCount: number;
+  attachmentCount?: number;
   rollingEntryCount: number;
   snapshots: BackupSnapshot[];
 }
@@ -132,10 +134,13 @@ export async function syncEntriesBackup(): Promise<BackupStatus> {
 
 export async function restoreEntriesBackup(
   source: "latest" | "rolling" = "latest",
-): Promise<{ restored: number; source: string }> {
-  return request<{ restored: number; source: string }>("/api/entries/restore", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ source }),
-  });
+): Promise<{ restored: number; attachments: number; source: string }> {
+  return request<{ restored: number; attachments: number; source: string }>(
+    "/api/entries/restore",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source }),
+    },
+  );
 }

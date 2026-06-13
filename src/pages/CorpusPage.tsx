@@ -60,6 +60,7 @@ export function CorpusPage() {
   const [backupStatus, setBackupStatus] = useState<{
     lastSyncAt: string | null;
     rollingEntryCount: number;
+    attachmentCount: number;
   } | null>(null);
   const [backingUp, setBackingUp] = useState(false);
   const [restoring, setRestoring] = useState(false);
@@ -102,6 +103,7 @@ export function CorpusPage() {
         setBackupStatus({
           lastSyncAt: status.lastSyncAt,
           rollingEntryCount: status.rollingEntryCount,
+          attachmentCount: status.attachmentCount ?? 0,
         });
         const last = status.lastSyncAt ? Date.parse(status.lastSyncAt) : 0;
         const dayMs = 24 * 60 * 60 * 1000;
@@ -111,6 +113,7 @@ export function CorpusPage() {
             setBackupStatus({
               lastSyncAt: synced.lastSyncAt,
               rollingEntryCount: synced.rollingEntryCount ?? synced.entryCount,
+              attachmentCount: synced.attachmentCount ?? 0,
             });
           }
         }
@@ -163,11 +166,14 @@ export function CorpusPage() {
       setBackupStatus({
         lastSyncAt: status.lastSyncAt,
         rollingEntryCount: status.rollingEntryCount ?? status.entryCount,
+        attachmentCount: status.attachmentCount ?? 0,
       });
       setBackupToast(
-        status.entryCount === 1
-          ? "Backed up 1 entry to the cloud."
-          : `Backed up ${status.entryCount} entries to the cloud.`,
+        status.attachmentCount
+          ? `Backed up ${status.entryCount} entries and ${status.attachmentCount} PDF attachment copies.`
+          : status.entryCount === 1
+            ? "Backed up 1 entry to the cloud."
+            : `Backed up ${status.entryCount} entries to the cloud.`,
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Backup failed.");
@@ -184,7 +190,11 @@ export function CorpusPage() {
     try {
       const result = await restoreEntriesBackup("latest");
       await reloadEntries();
-      setBackupToast(`Restored ${result.restored} entries from backup.`);
+      setBackupToast(
+        result.attachments
+          ? `Restored ${result.restored} entries and ${result.attachments} PDF attachments.`
+          : `Restored ${result.restored} entries from backup.`,
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Restore failed.");
     } finally {
@@ -266,7 +276,7 @@ export function CorpusPage() {
               onClick={() => void handleBackupNow()}
               disabled={loading || backingUp || restoring || recomputingAll || entries.length === 0}
               className="btn btn-secondary"
-              title="Save a timestamped snapshot to cloud storage"
+              title="Save a timestamped snapshot to cloud storage (entries, lexicon, and PDF attachments)"
             >
               {backingUp ? "Backing up…" : "Back up now"}
             </button>
@@ -275,7 +285,7 @@ export function CorpusPage() {
               onClick={handleDownloadJson}
               disabled={loading || entries.length === 0 || recomputingAll}
               className="btn btn-secondary"
-              title="Download entries JSON to your computer"
+              title="Download entries JSON to your computer (PDF files are not included — use Back up now for those)"
             >
               Download JSON
             </button>
@@ -350,7 +360,10 @@ export function CorpusPage() {
         <p className="text-xs text-muted -mt-2">
           Cloud backup: {formatBackupTime(backupStatus.lastSyncAt)}
           {backupStatus.rollingEntryCount > 0
-            ? ` · ${backupStatus.rollingEntryCount} entries in rolling backup`
+            ? ` · ${backupStatus.rollingEntryCount} entries`
+            : ""}
+          {backupStatus.attachmentCount > 0
+            ? ` · ${backupStatus.attachmentCount} PDF copies`
             : ""}
           {" · "}
           Auto-sync daily at 6:00 UTC and when you open Entries if older than 24h.
@@ -406,7 +419,7 @@ export function CorpusPage() {
       {showRestoreConfirm && (
         <ConfirmModal
           title="Restore from backup?"
-          message="This replaces all current entries with the latest cloud backup. Entries added after that backup will be lost unless you downloaded a JSON export."
+          message="This replaces all current entries with the latest cloud backup, including PDF attachments where available. Entries added after that backup will be lost unless you downloaded a JSON export."
           confirmLabel="Restore"
           destructive
           onConfirm={() => void handleRestore()}

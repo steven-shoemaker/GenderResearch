@@ -68,7 +68,7 @@ Share the production URL with your wife — entries and PDFs are shared for ever
 
 1. **New entry** → paste text → **Analyze** → optional PDF (uploads on **Save entry**).
 2. **Import** → search [Fantastic.jobs](https://fantastic.jobs/api) → select postings → import with analysis and industry metadata (requires `FANTASTIC_JOBS_API_KEY`).
-3. **Backups** — Entries are snapshotted to Vercel Blob on every save (rolling `entries.backup.json`), via **Back up now** / daily cron (`/api/cron/sync-backup`), and when you open Entries if the last sync is older than 24h. Use **Download JSON** for a local copy; **Restore backup** recovers the latest cloud snapshot.
+3. **Backups** — Entries, lexicon, and **PDF attachments** are copied to Vercel Blob on **Back up now** / daily cron / 24h auto-sync. Each snapshot stores attachment files under `backups/{timestamp}/attachments/`. **Download JSON** is entries metadata only (no PDF bytes). **Restore backup** recovers entries and re-copies PDFs to live storage.
 3. **Save entry** — stays on the saved view; data written to Blob.
 4. **Word list** → edit → **Save word list** → **Recompute entry** on older postings.
 5. **Entries** — search, open, download PDF, archive, delete.
