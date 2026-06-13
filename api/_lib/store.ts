@@ -127,7 +127,6 @@ export async function upsertEntry(e: Entry): Promise<Entry> {
 }
 export async function deleteEntry(id: string) {
   const all = await getEntries();
-  if (all.length) await writeJson(ENTRIES_BACKUP_BLOB, all);
   await writeJson(ENTRIES_BLOB, all.filter((e) => e.id !== id));
 }
 
