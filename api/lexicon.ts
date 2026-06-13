@@ -1,5 +1,5 @@
 export const runtime = "nodejs";
-import { opts, json, err, getLexicon, saveLexicon } from "./_lib/store";
+import { opts, json, err, getLexicon, saveLexicon } from "./_lib/store.js";
 
 export async function OPTIONS() { return opts(); }
 export async function GET() { try { return json(await getLexicon()); } catch (e) { return err(e instanceof Error ? e.message : "Failed"); } }

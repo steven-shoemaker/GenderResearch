@@ -1,5 +1,5 @@
 export const runtime = "nodejs";
-import { opts, json, err, entryIdFromUrl, getEntry, attachPath, upsertEntry, tok } from "../../_lib/store";
+import { opts, json, err, entryIdFromUrl, getEntry, attachPath, upsertEntry, tok } from "../../_lib/store.js";
 
 export async function OPTIONS() { return opts(); }
 export async function POST(req: Request) {

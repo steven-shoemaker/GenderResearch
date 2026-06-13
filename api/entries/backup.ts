@@ -1,5 +1,5 @@
 export const runtime = "nodejs";
-import { opts, json, err, readManifest, readJson, ENTRIES_BACKUP_BLOB, syncEntriesBackup, type Entry } from "../_lib/store";
+import { opts, json, err, readManifest, readJson, ENTRIES_BACKUP_BLOB, syncEntriesBackup, type Entry } from "../_lib/store.js";
 
 export async function OPTIONS() { return opts(); }
 export async function GET() {

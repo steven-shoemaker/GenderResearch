@@ -1,5 +1,5 @@
 export const runtime = "nodejs";
-import { opts, json, err } from "../_lib/store";
+import { opts, json, err } from "../_lib/store.js";
 
 const FANTASTIC_BASE = "https://data.fantastic.jobs";
 function fantasticKey() { return process.env.FANTASTIC_JOBS_API_KEY?.trim() || ""; }

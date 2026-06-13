@@ -1,5 +1,5 @@
 export const runtime = "nodejs";
-import { opts, json, err, entryIdFromUrl, getEntry, upsertEntry, delEntryAttachments, deleteEntry } from "../_lib/store";
+import { opts, json, err, entryIdFromUrl, getEntry, upsertEntry, delEntryAttachments, deleteEntry } from "../_lib/store.js";
 
 export async function OPTIONS() { return opts(); }
 export async function GET(req: Request) { try { const id = entryIdFromUrl(req.url); if (!id) return err("Missing id", 400); const e = await getEntry(id); if (!e) return err("Not found", 404); return json(e); } catch (e) { return err(e instanceof Error ? e.message : "Failed"); } }

@@ -1,5 +1,5 @@
 export const runtime = "nodejs";
-import { json, err, cronAuthorized, syncEntriesBackup } from "../_lib/store";
+import { json, err, cronAuthorized, syncEntriesBackup } from "../_lib/store.js";
 
 export async function GET(req: Request) {
   if (!cronAuthorized(req)) return err("Unauthorized", 401);
