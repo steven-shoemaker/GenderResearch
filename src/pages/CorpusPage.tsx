@@ -1,9 +1,16 @@
 import { useMemo, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { CorpusSummary } from "../components/CorpusSummary";
+import { ConfirmModal } from "../components/ConfirmModal";
 import { EntriesTable } from "../components/EntriesTable";
 import { Toast } from "../components/ui/Toast";
-import { fetchEntries, fetchLexicon } from "../lib/api-client";
+import {
+  fetchBackupStatus,
+  fetchEntries,
+  fetchLexicon,
+  restoreEntriesBackup,
+  syncEntriesBackup,
+} from "../lib/api-client";
 import { computeCorpusStats } from "../lib/corpus-stats";
 import { exportEntriesCsv } from "../lib/export-csv";
 import { recomputeStaleEntries } from "../lib/recompute-entries";
@@ -50,6 +57,20 @@ export function CorpusPage() {
     tone: "success" | "warn";
     text: string;
   } | null>(null);
+  const [backupStatus, setBackupStatus] = useState<{
+    lastSyncAt: string | null;
+    rollingEntryCount: number;
+  } | null>(null);
+  const [backingUp, setBackingUp] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
+  const [backupToast, setBackupToast] = useState<string | null>(null);
+
+  const reloadEntries = async () => {
+    const e = await fetchEntries();
+    setEntries(e);
+    return e;
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -72,6 +93,36 @@ export function CorpusPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const status = await fetchBackupStatus();
+        if (cancelled) return;
+        setBackupStatus({
+          lastSyncAt: status.lastSyncAt,
+          rollingEntryCount: status.rollingEntryCount,
+        });
+        const last = status.lastSyncAt ? Date.parse(status.lastSyncAt) : 0;
+        const dayMs = 24 * 60 * 60 * 1000;
+        if (entries.length > 0 && (!last || Date.now() - last > dayMs)) {
+          const synced = await syncEntriesBackup();
+          if (!cancelled) {
+            setBackupStatus({
+              lastSyncAt: synced.lastSyncAt,
+              rollingEntryCount: synced.rollingEntryCount ?? synced.entryCount,
+            });
+          }
+        }
+      } catch {
+        /* backup status is optional */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [entries.length]);
+
   const visible = filterEntries(entries, search, showArchived);
   const corpusStats = useMemo(
     () => computeCorpusStats(entries, showArchived, lexicon),
@@ -84,6 +135,75 @@ export function CorpusPage() {
 
   const handleExportCsv = () => {
     exportEntriesCsv(entries, lexicon, { archivedOnly: showArchived });
+  };
+
+  const handleDownloadJson = () => {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      entries,
+      lexicon,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `gender-research-entries-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleBackupNow = async () => {
+    setBackingUp(true);
+    setBackupToast(null);
+    setError(null);
+    try {
+      const status = await syncEntriesBackup();
+      setBackupStatus({
+        lastSyncAt: status.lastSyncAt,
+        rollingEntryCount: status.rollingEntryCount ?? status.entryCount,
+      });
+      setBackupToast(
+        status.entryCount === 1
+          ? "Backed up 1 entry to the cloud."
+          : `Backed up ${status.entryCount} entries to the cloud.`,
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Backup failed.");
+    } finally {
+      setBackingUp(false);
+    }
+  };
+
+  const handleRestore = async () => {
+    setShowRestoreConfirm(false);
+    setRestoring(true);
+    setBackupToast(null);
+    setError(null);
+    try {
+      const result = await restoreEntriesBackup("latest");
+      await reloadEntries();
+      setBackupToast(`Restored ${result.restored} entries from backup.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Restore failed.");
+    } finally {
+      setRestoring(false);
+    }
+  };
+
+  const formatBackupTime = (iso: string | null) => {
+    if (!iso) return "Never";
+    try {
+      return new Date(iso).toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+    } catch {
+      return iso;
+    }
   };
 
   const handleRecomputeAll = async () => {
@@ -143,6 +263,39 @@ export function CorpusPage() {
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
+              onClick={() => void handleBackupNow()}
+              disabled={loading || backingUp || restoring || recomputingAll || entries.length === 0}
+              className="btn btn-secondary"
+              title="Save a timestamped snapshot to cloud storage"
+            >
+              {backingUp ? "Backing up…" : "Back up now"}
+            </button>
+            <button
+              type="button"
+              onClick={handleDownloadJson}
+              disabled={loading || entries.length === 0 || recomputingAll}
+              className="btn btn-secondary"
+              title="Download entries JSON to your computer"
+            >
+              Download JSON
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowRestoreConfirm(true)}
+              disabled={
+                loading ||
+                restoring ||
+                backingUp ||
+                recomputingAll ||
+                (backupStatus?.rollingEntryCount ?? 0) === 0
+              }
+              className="btn btn-secondary"
+              title="Replace current entries with the latest cloud backup"
+            >
+              {restoring ? "Restoring…" : "Restore backup"}
+            </button>
+            <button
+              type="button"
               onClick={handleExportCsv}
               disabled={loading || exportableCount === 0 || recomputingAll}
               className="btn btn-secondary"
@@ -191,6 +344,19 @@ export function CorpusPage() {
         </label>
       </div>
 
+      {backupToast && <Toast tone="success">{backupToast}</Toast>}
+
+      {!loading && backupStatus && (
+        <p className="text-xs text-muted -mt-2">
+          Cloud backup: {formatBackupTime(backupStatus.lastSyncAt)}
+          {backupStatus.rollingEntryCount > 0
+            ? ` · ${backupStatus.rollingEntryCount} entries in rolling backup`
+            : ""}
+          {" · "}
+          Auto-sync daily at 6:00 UTC and when you open Entries if older than 24h.
+        </p>
+      )}
+
       {error && (
         <p className="rounded-lg border border-danger/25 bg-danger-soft text-danger text-sm px-3 py-2">
           {error}
@@ -235,6 +401,17 @@ export function CorpusPage() {
         </div>
       ) : (
         <EntriesTable entries={visible} lexicon={lexicon} />
+      )}
+
+      {showRestoreConfirm && (
+        <ConfirmModal
+          title="Restore from backup?"
+          message="This replaces all current entries with the latest cloud backup. Entries added after that backup will be lost unless you downloaded a JSON export."
+          confirmLabel="Restore"
+          destructive
+          onConfirm={() => void handleRestore()}
+          onCancel={() => setShowRestoreConfirm(false)}
+        />
       )}
     </div>
   );

@@ -107,3 +107,35 @@ export async function deleteAttachment(
     { method: "DELETE" },
   );
 }
+
+export interface BackupSnapshot {
+  id: string;
+  createdAt: string;
+  entryCount: number;
+  trigger: string;
+}
+
+export interface BackupStatus {
+  lastSyncAt: string | null;
+  entryCount: number;
+  rollingEntryCount: number;
+  snapshots: BackupSnapshot[];
+}
+
+export async function fetchBackupStatus(): Promise<BackupStatus> {
+  return request<BackupStatus>("/api/entries/backup");
+}
+
+export async function syncEntriesBackup(): Promise<BackupStatus> {
+  return request<BackupStatus>("/api/entries/backup", { method: "POST" });
+}
+
+export async function restoreEntriesBackup(
+  source: "latest" | "rolling" = "latest",
+): Promise<{ restored: number; source: string }> {
+  return request<{ restored: number; source: string }>("/api/entries/restore", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ source }),
+  });
+}

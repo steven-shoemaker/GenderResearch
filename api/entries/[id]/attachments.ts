@@ -3,6 +3,9 @@ export const runtime = "nodejs";
 const ENTRIES_BLOB = "gender-research/entries.json";
 const ENTRIES_BACKUP_BLOB = "gender-research/entries.backup.json";
 const LEXICON_BLOB = "gender-research/lexicon.json";
+const BACKUPS_PREFIX = "gender-research/backups/";
+const BACKUP_MANIFEST_BLOB = "gender-research/backups/manifest.json";
+const MAX_SNAPSHOTS = 60;
 const SEED_MASCULINE = ["Active","Adventurous","Aggress*","Ambitio*","Analy*","Assert*","Athlet*","Autonom*","Boast*","Challeng*","Compet*","Confident","Courag*","Decide","Decisive","Decision*","Determin*","Dominant","Domina*","Force*","Greedy","Headstrong","Hierarch*","Hostil*","Implusive","Independen*","Individual*","Intellect*","Lead*","Logic","Masculine","Objective","Opinion","Outspoken","Persist","Principle*","Reckless","Stubborn","Superior","Self-confiden*","Self-sufficien*","Self-relian*"];
 const SEED_FEMININE = ["Affectionate","Child*","Cheer*","Commit*","Communal","Compassion*","Connect*","Considerate","Cooperat*","Depend*","Emotiona*","Empath*","Feminine","Flatterable","Gentle","Honest","Interpersonal","Interdependen*","Interpersona*","Kind","Kinship","Loyal*","Modesty","Nag","Nurtur*","Pleasant*","Polite","Quiet*","Respon*","Sensitiv*","Submissive","Support*","Sympath*","Tender*","Together*","Trust*","Understand*","Warm*","Whin*","Yield*"];
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS", "Access-Control-Allow-Headers": "Content-Type" };
@@ -23,6 +26,53 @@ async function getLexicon() { return (await readJson(LEXICON_BLOB, null)) ?? { m
 async function saveLexicon(l) { const n = { ...l, updatedAt: new Date().toISOString() }; await writeJson(LEXICON_BLOB, n); return n; }
 function attachPath(eid, aid, fn) { return `gender-research/attachments/${eid}/${aid}-${fn.replace(/[^a-zA-Z0-9._-]/g, "_")}`; }
 async function delEntryAttachments(eid) { const { list, del } = await import("@vercel/blob"); const { blobs } = await list({ prefix: `gender-research/attachments/${eid}/`, token: tok() }); await Promise.all(blobs.map((b) => del(b.url, { token: tok() }))); }
+function snapshotStamp(d) { const x = d ?? new Date(); return x.toISOString().replace(/[:.]/g, "-").slice(0, 19) + "Z"; }
+async function readManifest() { return (await readJson(BACKUP_MANIFEST_BLOB, null)) ?? { lastSyncAt: null, entryCount: 0, snapshots: [] }; }
+async function deleteBlobPath(pathname) { const { list, del } = await import("@vercel/blob"); const { blobs } = await list({ prefix: pathname, limit: 1, token: tok() }); const m = blobs.find((b) => b.pathname === pathname); if (m?.url) await del(m.url, { token: tok() }); }
+async function syncEntriesBackup(trigger) {
+  const entries = await getEntries();
+  const lexicon = await getLexicon();
+  const now = new Date();
+  const stamp = snapshotStamp(now);
+  const entriesSnapshot = BACKUPS_PREFIX + "entries-" + stamp + ".json";
+  const lexiconSnapshot = BACKUPS_PREFIX + "lexicon-" + stamp + ".json";
+  if (entries.length) await writeJson(ENTRIES_BACKUP_BLOB, entries);
+  if (entries.length) await writeJson(entriesSnapshot, entries);
+  await writeJson(lexiconSnapshot, lexicon);
+  const manifest = await readManifest();
+  const snapshots = Array.isArray(manifest.snapshots) ? manifest.snapshots : [];
+  snapshots.unshift({ id: stamp, createdAt: now.toISOString(), entryCount: entries.length, trigger: trigger || "manual" });
+  const pruned = snapshots.slice(MAX_SNAPSHOTS);
+  for (const s of snapshots.slice(MAX_SNAPSHOTS)) {
+    await deleteBlobPath(BACKUPS_PREFIX + "entries-" + s.id + ".json");
+    await deleteBlobPath(BACKUPS_PREFIX + "lexicon-" + s.id + ".json");
+  }
+  const next = { lastSyncAt: now.toISOString(), entryCount: entries.length, rollingEntryCount: entries.length, snapshots: pruned };
+  await writeJson(BACKUP_MANIFEST_BLOB, next);
+  return next;
+}
+async function restoreEntries(source) {
+  let entries = null;
+  let used = source;
+  if (source === "rolling") {
+    entries = await readJson(ENTRIES_BACKUP_BLOB, null);
+  } else {
+    const manifest = await readManifest();
+    const snap = source === "latest" ? manifest.snapshots?.[0] : (manifest.snapshots || []).find((s) => s.id === source);
+    if (!snap) throw new Error("Backup snapshot not found");
+    entries = await readJson(BACKUPS_PREFIX + "entries-" + snap.id + ".json", null);
+    used = snap.id;
+  }
+  if (!Array.isArray(entries)) throw new Error("Backup is empty or unreadable");
+  if (!entries.length) throw new Error("Backup contains no entries");
+  await writeJson(ENTRIES_BLOB, entries);
+  return { restored: entries.length, source: used };
+}
+function cronAuthorized(req) {
+  const secret = process.env.CRON_SECRET?.trim();
+  if (!secret) return true;
+  return req.headers.get("authorization") === "Bearer " + secret;
+}
 
 
 export async function OPTIONS() { return opts(); }
