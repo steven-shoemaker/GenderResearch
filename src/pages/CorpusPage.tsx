@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { CorpusSummary } from "../components/CorpusSummary";
 import { ConfirmModal } from "../components/ConfirmModal";
@@ -9,10 +9,12 @@ import {
   fetchEntries,
   fetchLexicon,
   restoreEntriesBackup,
+  saveEntry,
   syncEntriesBackup,
 } from "../lib/api-client";
 import { computeCorpusStats } from "../lib/corpus-stats";
 import { exportEntriesCsv } from "../lib/export-csv";
+import { parseEntriesCsv } from "../lib/import-csv";
 import { recomputeStaleEntries } from "../lib/recompute-entries";
 import { entryTitle } from "../lib/entries";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -66,6 +68,8 @@ export function CorpusPage() {
   const [restoring, setRestoring] = useState(false);
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
   const [backupToast, setBackupToast] = useState<string | null>(null);
+  const [importingCsv, setImportingCsv] = useState(false);
+  const csvInputRef = useRef<HTMLInputElement>(null);
 
   const reloadEntries = async () => {
     const e = await fetchEntries();
@@ -145,6 +149,52 @@ export function CorpusPage() {
 
   const handleExportCsv = () => {
     exportEntriesCsv(entries, lexicon, { archivedOnly: showArchived });
+  };
+
+  const handleImportCsvClick = () => {
+    csvInputRef.current?.click();
+  };
+
+  const handleImportCsvFile = async (file: File) => {
+    if (!lexicon) {
+      setError("Word list not loaded yet. Try again in a moment.");
+      return;
+    }
+    setImportingCsv(true);
+    setError(null);
+    setBackupToast(null);
+    try {
+      const text = await file.text();
+      const existingIds = new Set(entries.map((e) => e.id));
+      const { imported, skipped, errors } = parseEntriesCsv(
+        text,
+        lexicon,
+        existingIds,
+      );
+      if (imported.length === 0) {
+        const detail = errors[0] ?? "No rows could be imported.";
+        throw new Error(detail);
+      }
+      for (const entry of imported) {
+        await saveEntry(entry);
+      }
+      await reloadEntries();
+      const msg =
+        imported.length === 1
+          ? "Imported 1 entry from CSV."
+          : `Imported ${imported.length} entries from CSV.`;
+      const skipNote =
+        skipped > 0 ? ` Skipped ${skipped} row${skipped === 1 ? "" : "s"}.` : "";
+      setBackupToast(msg + skipNote);
+      if (errors.length > 0 && skipped > 0) {
+        console.warn("CSV import warnings:", errors);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "CSV import failed.");
+    } finally {
+      setImportingCsv(false);
+      if (csvInputRef.current) csvInputRef.current.value = "";
+    }
   };
 
   const handleDownloadJson = () => {
@@ -322,8 +372,27 @@ export function CorpusPage() {
               </button>
               <button
                 type="button"
+                onClick={handleImportCsvClick}
+                disabled={loading || importingCsv || recomputingAll || !lexicon}
+                className="btn btn-secondary text-sm"
+                title="Import entries from a CSV with the same columns as Export CSV plus description"
+              >
+                {importingCsv ? "Importing…" : "Import CSV"}
+              </button>
+              <input
+                ref={csvInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="sr-only"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void handleImportCsvFile(file);
+                }}
+              />
+              <button
+                type="button"
                 onClick={handleExportCsv}
-                disabled={loading || exportableCount === 0 || recomputingAll}
+                disabled={loading || exportableCount === 0 || recomputingAll || importingCsv}
                 className="btn btn-secondary text-sm"
                 title={
                   exportableCount === 0

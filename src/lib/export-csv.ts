@@ -3,7 +3,7 @@ import { entryTitle } from "./entries";
 import { entryIsStale } from "./utils";
 import type { Entry, Lexicon } from "../types";
 
-const COLUMNS = [
+export const CSV_EXPORT_COLUMNS = [
   "title",
   "company",
   "source_url",
@@ -22,6 +22,9 @@ const COLUMNS = [
   "entry_id",
   "app_link",
 ] as const;
+
+/** Export columns plus job description text (import-only). */
+export const CSV_IMPORT_COLUMNS = [...CSV_EXPORT_COLUMNS, "description"] as const;
 
 function escapeCsvCell(value: string): string {
   if (/[",\n\r]/.test(value)) {
@@ -54,7 +57,7 @@ export function entriesToCsv(
         new Date(b.capturedDate).getTime() - new Date(a.capturedDate).getTime(),
     );
 
-  const header = COLUMNS.join(",");
+  const header = CSV_EXPORT_COLUMNS.join(",");
   const rows = saved.map((entry) => {
     const a = entry.analysis;
     const displayTitle = entry.title.trim() || entryTitle(entry);
