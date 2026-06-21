@@ -14,7 +14,7 @@ import {
 } from "../lib/api-client";
 import { computeCorpusStats } from "../lib/corpus-stats";
 import { exportEntriesCsv } from "../lib/export-csv";
-import { parseEntriesCsv } from "../lib/import-csv";
+import { parseEntriesCsv, csvImportExistingFromEntries } from "../lib/import-csv";
 import { recomputeStaleEntries } from "../lib/recompute-entries";
 import { entryTitle } from "../lib/entries";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -165,14 +165,17 @@ export function CorpusPage() {
     setBackupToast(null);
     try {
       const text = await file.text();
-      const existingIds = new Set(entries.map((e) => e.id));
+      const existing = csvImportExistingFromEntries(entries);
       const { imported, skipped, errors } = parseEntriesCsv(
         text,
         lexicon,
-        existingIds,
+        existing,
       );
       if (imported.length === 0) {
-        const detail = errors[0] ?? "No rows could be imported.";
+        const detail =
+          skipped > 0
+            ? `All ${skipped} row${skipped === 1 ? "" : "s"} already in your corpus (matched by entry_id or source_url).`
+            : errors[0] ?? "No rows could be imported.";
         throw new Error(detail);
       }
       const { added, total } = await importEntries(imported);

@@ -90,6 +90,40 @@ function validateHeaders(headers: string[]): string | null {
   return null;
 }
 
+function parseCapturedDate(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return todayIsoDate();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    const d = new Date(`${trimmed}T12:00:00`);
+    if (!Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === trimmed) {
+      return trimmed;
+    }
+  }
+  const parsed = Date.parse(trimmed);
+  if (!Number.isNaN(parsed)) {
+    return new Date(parsed).toISOString().slice(0, 10);
+  }
+  return todayIsoDate();
+}
+
+function normalizeUrl(url: string): string {
+  return url.trim().toLowerCase();
+}
+
+export interface CsvImportExisting {
+  entryIds: Set<string>;
+  sourceUrls: Set<string>;
+}
+
+export function csvImportExistingFromEntries(entries: Entry[]): CsvImportExisting {
+  return {
+    entryIds: new Set(entries.map((e) => e.id)),
+    sourceUrls: new Set(
+      entries.map((e) => normalizeUrl(e.sourceUrl)).filter(Boolean),
+    ),
+  };
+}
+
 function entryIdFromRow(raw: string, used: Set<string>, existing: Set<string>): string {
   const id = raw.trim();
   if (UUID_RE.test(id) && !used.has(id) && !existing.has(id)) return id;
@@ -99,7 +133,7 @@ function entryIdFromRow(raw: string, used: Set<string>, existing: Set<string>): 
 export function csvRowsToEntries(
   rows: string[][],
   lexicon: Lexicon,
-  existingEntryIds: Set<string>,
+  existing: CsvImportExisting,
 ): CsvImportResult {
   const errors: string[] = [];
   const imported: Entry[] = [];
@@ -114,6 +148,7 @@ export function csvRowsToEntries(
   if (headerError) return { imported, skipped, errors: [headerError] };
 
   const usedIds = new Set<string>();
+  const usedSourceUrls = new Set<string>();
 
   for (let r = 1; r < rows.length; r++) {
     const line = r + 1;
@@ -126,21 +161,34 @@ export function csvRowsToEntries(
     }
 
     const rawId = (rec.entry_id ?? "").trim();
-    if (rawId && existingEntryIds.has(rawId)) {
+    const sourceUrl = normalizeUrl(rec.source_url ?? "");
+
+    if (rawId && existing.entryIds.has(rawId)) {
       skipped++;
-      errors.push(`Row ${line}: skipped — entry_id already exists (${rawId}).`);
+      errors.push(`Row ${line}: skipped — already in corpus (entry_id).`);
+      continue;
+    }
+    if (sourceUrl && existing.sourceUrls.has(sourceUrl)) {
+      skipped++;
+      errors.push(`Row ${line}: skipped — already in corpus (source_url).`);
       continue;
     }
     if (rawId && usedIds.has(rawId)) {
       skipped++;
-      errors.push(`Row ${line}: skipped — duplicate entry_id in file (${rawId}).`);
+      errors.push(`Row ${line}: skipped — duplicate entry_id in file.`);
+      continue;
+    }
+    if (sourceUrl && usedSourceUrls.has(sourceUrl)) {
+      skipped++;
+      errors.push(`Row ${line}: skipped — duplicate source_url in file.`);
       continue;
     }
 
-    const id = entryIdFromRow(rawId, usedIds, existingEntryIds);
+    const id = entryIdFromRow(rawId, usedIds, existing.entryIds);
     usedIds.add(id);
+    if (sourceUrl) usedSourceUrls.add(sourceUrl);
 
-    const captured = (rec.captured_date ?? "").trim() || todayIsoDate();
+    const captured = parseCapturedDate(rec.captured_date ?? "");
     const now = new Date().toISOString();
     const analysis = analyzeText(description, lexicon);
 
@@ -174,7 +222,7 @@ export function csvRowsToEntries(
 export function parseEntriesCsv(
   csvText: string,
   lexicon: Lexicon,
-  existingEntryIds: Set<string>,
+  existing: CsvImportExisting,
 ): CsvImportResult {
-  return csvRowsToEntries(parseCsv(csvText), lexicon, existingEntryIds);
+  return csvRowsToEntries(parseCsv(csvText), lexicon, existing);
 }
