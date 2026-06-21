@@ -55,6 +55,16 @@ export async function saveEntry(entry: Entry): Promise<Entry> {
   });
 }
 
+export async function importEntries(
+  entries: Entry[],
+): Promise<{ added: number; total: number }> {
+  return request<{ added: number; total: number }>("/api/entries/import", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(entries),
+  });
+}
+
 export async function removeEntry(id: string): Promise<void> {
   await request(`/api/entries/${id}`, { method: "DELETE" });
 }

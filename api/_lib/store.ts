@@ -134,6 +134,21 @@ export async function upsertEntry(e: Entry): Promise<Entry> {
   await writeJson(ENTRIES_BLOB, all);
   return e;
 }
+/** Merge many entries in one read/write so bulk import cannot lose rows to stale reads. */
+export async function upsertEntries(incoming: Entry[]): Promise<{ added: number; total: number }> {
+  if (!incoming.length) return { added: 0, total: (await getEntries()).length };
+  const all = await getEntries();
+  if (all.length) await writeJson(ENTRIES_BACKUP_BLOB, all);
+  const byId = new Map(all.map((e) => [e.id, e]));
+  let added = 0;
+  for (const e of incoming) {
+    if (!byId.has(e.id)) added++;
+    byId.set(e.id, e);
+  }
+  const merged = [...byId.values()];
+  await writeJson(ENTRIES_BLOB, merged);
+  return { added, total: merged.length };
+}
 export async function deleteEntry(id: string) {
   const all = await getEntries();
   await writeJson(ENTRIES_BLOB, all.filter((e) => e.id !== id));

@@ -9,7 +9,7 @@ import {
   fetchEntries,
   fetchLexicon,
   restoreEntriesBackup,
-  saveEntry,
+  importEntries,
   syncEntriesBackup,
 } from "../lib/api-client";
 import { computeCorpusStats } from "../lib/corpus-stats";
@@ -175,14 +175,12 @@ export function CorpusPage() {
         const detail = errors[0] ?? "No rows could be imported.";
         throw new Error(detail);
       }
-      for (const entry of imported) {
-        await saveEntry(entry);
-      }
+      const { added, total } = await importEntries(imported);
       await reloadEntries();
       const msg =
-        imported.length === 1
-          ? "Imported 1 entry from CSV."
-          : `Imported ${imported.length} entries from CSV.`;
+        added === 1
+          ? `Imported 1 entry from CSV (${total} total).`
+          : `Imported ${added} entries from CSV (${total} total).`;
       const skipNote =
         skipped > 0 ? ` Skipped ${skipped} row${skipped === 1 ? "" : "s"}.` : "";
       setBackupToast(msg + skipNote);
