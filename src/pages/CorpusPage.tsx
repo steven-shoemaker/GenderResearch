@@ -76,18 +76,25 @@ export function CorpusPage() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      let entriesError: string | null = null;
+      let lexiconError: string | null = null;
       try {
-        const [e, l] = await Promise.all([fetchEntries(), fetchLexicon()]);
-        if (!cancelled) {
-          setEntries(e);
-          setLexicon(l);
-        }
+        const e = await fetchEntries();
+        if (!cancelled) setEntries(e);
       } catch {
-        if (!cancelled)
-          setError("Could not load entries. Check your connection and try again.");
-      } finally {
-        if (!cancelled) setLoading(false);
+        entriesError = "Could not load entries. Check your connection and try again.";
       }
+      try {
+        const l = await fetchLexicon();
+        if (!cancelled) setLexicon(l);
+      } catch {
+        lexiconError = "Could not load word list. Scores may be outdated until it reloads.";
+      }
+      if (!cancelled) {
+        if (entriesError) setError(entriesError);
+        else if (lexiconError) setError(lexiconError);
+      }
+      if (!cancelled) setLoading(false);
     })();
     return () => {
       cancelled = true;

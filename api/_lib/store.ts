@@ -94,13 +94,22 @@ export function entryIdFromUrl(url: string) {
 // Fallback only when the blob genuinely doesn't exist yet; any read failure throws so
 // callers never mistake an outage for an empty store and overwrite real data.
 export async function readJson<T>(p: string, fb: T): Promise<T> {
-  const { list } = await import("@vercel/blob");
-  const { blobs } = await list({ prefix: p, limit: 1, token: tok() });
-  const m = blobs.find((b) => b.pathname === p);
-  if (!m) return fb;
-  const r = await fetch(m.url + "?v=" + new Date(m.uploadedAt).getTime(), { cache: "no-store" });
-  if (!r.ok) throw new Error("Failed to read " + p + " (HTTP " + r.status + ")");
-  return r.json() as Promise<T>;
+  const { head } = await import("@vercel/blob");
+  let meta;
+  try {
+    meta = await head(p, { token: tok() });
+  } catch {
+    return fb;
+  }
+  const v = new Date(meta.uploadedAt).getTime();
+  const urls = [meta.downloadUrl, meta.url].filter(Boolean) as string[];
+  let lastStatus = 0;
+  for (const u of urls) {
+    const r = await fetch(u + (u.includes("?") ? "&" : "?") + "v=" + v, { cache: "no-store" });
+    if (r.ok) return r.json() as Promise<T>;
+    lastStatus = r.status;
+  }
+  throw new Error("Failed to read " + p + " (HTTP " + lastStatus + ")");
 }
 async function writeJson(p: string, d: unknown) {
   const { put } = await import("@vercel/blob");
@@ -130,10 +139,21 @@ export async function deleteEntry(id: string) {
   await writeJson(ENTRIES_BLOB, all.filter((e) => e.id !== id));
 }
 
-export async function getLexicon(): Promise<Lexicon> {
-  return (await readJson<Lexicon | null>(LEXICON_BLOB, null)) ?? {
-    masculine: [...SEED_MASCULINE], feminine: [...SEED_FEMININE], updatedAt: new Date().toISOString(),
+function defaultLexicon(): Lexicon {
+  return {
+    masculine: [...SEED_MASCULINE],
+    feminine: [...SEED_FEMININE],
+    updatedAt: new Date().toISOString(),
   };
+}
+
+export async function getLexicon(): Promise<Lexicon> {
+  try {
+    return (await readJson<Lexicon | null>(LEXICON_BLOB, null)) ?? defaultLexicon();
+  } catch {
+    // Lexicon read failures must not take down the app; seed list is safe to use.
+    return defaultLexicon();
+  }
 }
 export async function saveLexicon(l: Lexicon): Promise<Lexicon> {
   const n = { ...l, updatedAt: new Date().toISOString() };
