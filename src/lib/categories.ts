@@ -1,11 +1,11 @@
 import type { Entry, ResearchCategory } from "../types";
 
 export const ALL_CATEGORIES_FILTER = "all";
-export const UNCategorized_FILTER = "uncategorized";
+export const UNCATEGORIZED_FILTER = "uncategorized";
 
 export type CategoryFilter =
   | typeof ALL_CATEGORIES_FILTER
-  | typeof UNCategorized_FILTER
+  | typeof UNCATEGORIZED_FILTER
   | string;
 
 export function categorySlug(name: string): string {
@@ -26,6 +26,35 @@ export function uniqueCategoryId(name: string, existing: ResearchCategory[]): st
   return `${base}-${n}`;
 }
 
+/** Case/whitespace-insensitive lookup so "Sustainability" and "sustainability" don't become two categories. */
+export function findCategoryByName(
+  categories: ResearchCategory[],
+  name: string,
+): ResearchCategory | undefined {
+  const trimmed = name.trim();
+  if (!trimmed) return undefined;
+  return categories.find(
+    (c) => c.name.localeCompare(trimmed, undefined, { sensitivity: "base" }) === 0,
+  );
+}
+
+/** Reuse a matching category by name instead of creating a near-duplicate. */
+export function resolveOrCreateCategory(
+  name: string,
+  existing: ResearchCategory[],
+): { category: ResearchCategory; isNew: boolean } {
+  const match = findCategoryByName(existing, name);
+  if (match) return { category: match, isNew: false };
+  return {
+    category: {
+      id: uniqueCategoryId(name, existing),
+      name: name.trim(),
+      createdAt: new Date().toISOString(),
+    },
+    isNew: true,
+  };
+}
+
 export function categoryNameById(
   categories: ResearchCategory[],
   categoryId: string | null | undefined,
@@ -39,7 +68,7 @@ export function entryMatchesCategoryFilter(
   filter: CategoryFilter,
 ): boolean {
   if (filter === ALL_CATEGORIES_FILTER) return true;
-  if (filter === UNCategorized_FILTER) return !entry.categoryId;
+  if (filter === UNCATEGORIZED_FILTER) return !entry.categoryId;
   return entry.categoryId === filter;
 }
 

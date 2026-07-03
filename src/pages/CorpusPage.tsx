@@ -21,7 +21,7 @@ import {
   categoryNameById,
   entryMatchesCategoryFilter,
   sortCategories,
-  UNCategorized_FILTER,
+  UNCATEGORIZED_FILTER,
   type CategoryFilter,
 } from "../lib/categories";
 import { bulkAssignCategory } from "../lib/bulk-categories";
@@ -184,7 +184,7 @@ export function CorpusPage() {
 
   const categoryLabel = useMemo(() => {
     if (categoryFilter === ALL_CATEGORIES_FILTER) return "All categories (combined)";
-    if (categoryFilter === UNCategorized_FILTER) return "Uncategorized";
+    if (categoryFilter === UNCATEGORIZED_FILTER) return "Uncategorized";
     return categoryNameById(categories, categoryFilter);
   }, [categoryFilter, categories]);
 

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Field } from "./ui/Field";
-import { sortCategories, uniqueCategoryId } from "../lib/categories";
+import { resolveOrCreateCategory, sortCategories } from "../lib/categories";
 import type { ResearchCategory } from "../types";
 
 interface CategorySelectProps {
@@ -39,12 +39,8 @@ export function CategorySelect({
     setSaving(true);
     setCreateError(null);
     try {
-      const category: ResearchCategory = {
-        id: uniqueCategoryId(name, categories),
-        name,
-        createdAt: new Date().toISOString(),
-      };
-      await onCreateCategory(category);
+      const { category, isNew } = resolveOrCreateCategory(name, categories);
+      if (isNew) await onCreateCategory(category);
       onChange(category.id);
       setNewName("");
       setCreating(false);
@@ -149,12 +145,8 @@ export function CategoryFilter({
     if (!name || !onCreateCategory) return;
     setSaving(true);
     try {
-      const category: ResearchCategory = {
-        id: uniqueCategoryId(name, categories),
-        name,
-        createdAt: new Date().toISOString(),
-      };
-      await onCreateCategory(category);
+      const { category, isNew } = resolveOrCreateCategory(name, categories);
+      if (isNew) await onCreateCategory(category);
       onChange(category.id);
       setNewName("");
       setCreating(false);
