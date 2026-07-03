@@ -564,13 +564,18 @@ export function CorpusPage() {
           </label>
         </div>
 
-        <CategoryFilterBar
-          categories={categories}
-          value={categoryFilter}
-          onChange={(value) => setCategoryFilter(value as CategoryFilter)}
-          onCreateCategory={handleCreateCategory}
-          disabled={loading || recomputingAll}
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          <CategoryFilterBar
+            categories={categories}
+            value={categoryFilter}
+            onChange={(value) => setCategoryFilter(value as CategoryFilter)}
+            onCreateCategory={handleCreateCategory}
+            disabled={loading || recomputingAll}
+          />
+          <Link to="/categories" className="text-link text-xs shrink-0">
+            Manage categories
+          </Link>
+        </div>
       </div>
 
       {backupToast && <Toast tone="success">{backupToast}</Toast>}

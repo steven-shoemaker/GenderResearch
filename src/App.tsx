@@ -1,5 +1,6 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { Layout } from "./components/Layout";
+import { CategoriesPage } from "./pages/CategoriesPage";
 import { CorpusPage } from "./pages/CorpusPage";
 import { EntryPage } from "./pages/EntryPage";
 import { ImportPage } from "./pages/ImportPage";
@@ -13,6 +14,7 @@ const router = createBrowserRouter([
       { index: true, element: <CorpusPage /> },
       { path: "import", element: <ImportPage /> },
       { path: "entry/:id", element: <EntryPage /> },
+      { path: "categories", element: <CategoriesPage /> },
       { path: "word-list", element: <LexiconPage /> },
     ],
   },

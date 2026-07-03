@@ -62,7 +62,9 @@ export function CategorySelect({
             disabled={disabled || saving}
             className="field-input min-h-10 py-2 flex-1 min-w-[12rem]"
           >
-            {allowUncategorized && <option value="">Uncategorized</option>}
+            {(allowUncategorized || sorted.length === 0) && (
+              <option value="">Uncategorized</option>
+            )}
             {sorted.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}

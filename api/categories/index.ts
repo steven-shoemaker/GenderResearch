@@ -1,5 +1,5 @@
 export const runtime = "nodejs";
-import { opts, json, err, getCategories, saveCategories } from "./_lib/store.js";
+import { opts, json, err, getCategories, saveCategories } from "../_lib/store.js";
 
 export async function OPTIONS() {
   return opts();
