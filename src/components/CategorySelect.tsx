@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Field } from "./ui/Field";
+import { Select } from "./ui/Select";
 import { resolveOrCreateCategory, sortCategories } from "../lib/categories";
 import type { ResearchCategory } from "../types";
 
@@ -55,12 +56,12 @@ export function CategorySelect({
     <Field label={label} htmlFor={id} hint={hint}>
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap gap-2">
-          <select
+          <Select
             id={id}
             value={value ?? ""}
             onChange={(e) => onChange(e.target.value || null)}
             disabled={disabled || saving}
-            className="field-input min-h-10 py-2 flex-1 min-w-[12rem]"
+            className="min-h-10 py-2 flex-1 min-w-[12rem]"
           >
             {(allowUncategorized || sorted.length === 0) && (
               <option value="">Uncategorized</option>
@@ -70,7 +71,7 @@ export function CategorySelect({
                 {c.name}
               </option>
             ))}
-          </select>
+          </Select>
           {onCreateCategory && (
             <button
               type="button"
@@ -163,12 +164,12 @@ export function CategoryFilter({
         <label htmlFor="category-filter" className="block text-xs font-medium text-muted mb-1">
           Category
         </label>
-        <select
+        <Select
           id="category-filter"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled || saving}
-          className="field-input min-h-10 py-2 w-full"
+          className="min-h-10 py-2 w-full"
         >
           <option value="all">All categories (combined)</option>
           <option value="uncategorized">Uncategorized</option>
@@ -177,7 +178,7 @@ export function CategoryFilter({
               {c.name}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
       {onCreateCategory && (
         <div className="flex flex-wrap gap-2 items-end">

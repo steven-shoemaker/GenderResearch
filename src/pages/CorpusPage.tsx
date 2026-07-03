@@ -1,10 +1,11 @@
 import { useMemo, useEffect, useState, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { BulkCategoryToolbar } from "../components/BulkCategoryToolbar";
 import { CorpusSummary } from "../components/CorpusSummary";
 import { CategoryFilter as CategoryFilterBar } from "../components/CategorySelect";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { EntriesTable } from "../components/EntriesTable";
+import { OverflowMenu } from "../components/ui/OverflowMenu";
 import { Toast } from "../components/ui/Toast";
 import {
   fetchBackupStatus,
@@ -63,9 +64,26 @@ function filterEntries(
 }
 
 export function CorpusPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>(ALL_CATEGORIES_FILTER);
+  const [categoryFilter, setCategoryFilterState] = useState<CategoryFilter>(
+    () => searchParams.get("category") || ALL_CATEGORIES_FILTER,
+  );
+
+  /** Keeps the URL deep-linkable (e.g. from Analytics' "View entries" links). */
+  const setCategoryFilter = (value: CategoryFilter) => {
+    setCategoryFilterState(value);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (value === ALL_CATEGORIES_FILTER) next.delete("category");
+        else next.set("category", value);
+        return next;
+      },
+      { replace: true },
+    );
+  };
   const [entries, setEntries] = useState<Entry[]>([]);
   const [categories, setCategories] = useState<ResearchCategory[]>([]);
   const [lexicon, setLexicon] = useState<Lexicon | null>(null);
@@ -456,87 +474,67 @@ export function CorpusPage() {
         title="Entries"
         description="Paste job descriptions, analyze gendered language, and save your research."
         action={
-          <div className="flex w-full flex-col gap-3 sm:items-end">
-            <div className="flex flex-wrap gap-2">
-              <Link to="/entry/new" className="btn btn-primary">
-                New entry
-              </Link>
-              <Link to="/import" className="btn btn-secondary">
-                Import jobs
-              </Link>
-            </div>
-            <div className="flex flex-wrap gap-2 border-t border-line pt-3 sm:justify-end">
-              <button
-                type="button"
-                onClick={() => void handleBackupNow()}
-                disabled={loading || backingUp || restoring || recomputingAll || entries.length === 0}
-                className="btn btn-secondary text-sm"
-                title="Save a timestamped snapshot to cloud storage (entries, lexicon, and PDF attachments)"
-              >
-                {backingUp ? "Backing up…" : "Back up now"}
-              </button>
-              <button
-                type="button"
-                onClick={handleDownloadJson}
-                disabled={loading || entries.length === 0 || recomputingAll}
-                className="btn btn-secondary text-sm"
-                title="Download entries JSON to your computer (PDF files are not included — use Back up now for those)"
-              >
-                Download JSON
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowRestoreConfirm(true)}
-                disabled={
-                  loading ||
-                  restoring ||
-                  backingUp ||
-                  recomputingAll ||
-                  (backupStatus?.rollingEntryCount ?? 0) === 0
-                }
-                className="btn btn-secondary text-sm"
-                title="Replace current entries with the latest cloud backup"
-              >
-                {restoring ? "Restoring…" : "Restore backup"}
-              </button>
-              <button
-                type="button"
-                onClick={handleImportCsvClick}
-                disabled={loading || importingCsv || recomputingAll || !lexicon}
-                className="btn btn-secondary text-sm"
-                title="Import entries from a CSV with the same columns as Export CSV plus description"
-              >
-                {importingCsv ? "Importing…" : "Import CSV"}
-              </button>
-              <input
-                ref={csvInputRef}
-                type="file"
-                accept=".csv,text/csv"
-                className="sr-only"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) void handleImportCsvFile(file);
-                }}
-              />
-              <button
-                type="button"
-                onClick={handleExportCsv}
-                disabled={loading || exportableCount === 0 || recomputingAll || importingCsv}
-                className="btn btn-secondary text-sm"
-                title={
-                  exportableCount === 0
-                    ? "No entries to export"
-                    : "Download collection as CSV"
-                }
-              >
-                Export CSV
-              </button>
-            </div>
+          <div className="flex flex-wrap gap-2 sm:justify-end">
+            <Link to="/entry/new" className="btn btn-primary">
+              New entry
+            </Link>
+            <Link to="/import" className="btn btn-secondary">
+              Import jobs
+            </Link>
+            <OverflowMenu
+              disabled={loading}
+              items={[
+                {
+                  label: backingUp ? "Backing up…" : "Back up now",
+                  onClick: () => void handleBackupNow(),
+                  disabled: backingUp || restoring || recomputingAll || entries.length === 0,
+                  hint: "Save a timestamped snapshot to cloud storage (entries, lexicon, and PDF attachments)",
+                },
+                {
+                  label: "Download JSON",
+                  onClick: handleDownloadJson,
+                  disabled: entries.length === 0 || recomputingAll,
+                  hint: "Download entries JSON to your computer (PDF files are not included — use Back up now for those)",
+                },
+                {
+                  label: restoring ? "Restoring…" : "Restore backup",
+                  onClick: () => setShowRestoreConfirm(true),
+                  disabled:
+                    restoring ||
+                    backingUp ||
+                    recomputingAll ||
+                    (backupStatus?.rollingEntryCount ?? 0) === 0,
+                  hint: "Replace current entries with the latest cloud backup",
+                },
+                {
+                  label: importingCsv ? "Importing…" : "Import CSV",
+                  onClick: handleImportCsvClick,
+                  disabled: importingCsv || recomputingAll || !lexicon,
+                  hint: "Import entries from a CSV with the same columns as Export CSV plus description",
+                },
+                {
+                  label: "Export CSV",
+                  onClick: handleExportCsv,
+                  disabled: exportableCount === 0 || recomputingAll || importingCsv,
+                  hint: exportableCount === 0 ? "No entries to export" : "Download collection as CSV",
+                },
+              ]}
+            />
+            <input
+              ref={csvInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              className="sr-only"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void handleImportCsvFile(file);
+              }}
+            />
           </div>
         }
       />
 
-      <div className="flex flex-col gap-3">
+      <div className="panel flex flex-col gap-3 p-3 sm:p-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="flex-1" role="search">
             <label htmlFor="search-entries" className="sr-only">
@@ -564,7 +562,7 @@ export function CorpusPage() {
           </label>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 border-t border-line pt-3">
           <CategoryFilterBar
             categories={categories}
             value={categoryFilter}
@@ -572,9 +570,14 @@ export function CorpusPage() {
             onCreateCategory={handleCreateCategory}
             disabled={loading || recomputingAll}
           />
-          <Link to="/categories" className="text-link text-xs shrink-0">
-            Manage categories
-          </Link>
+          <div className="flex items-center gap-3 text-xs shrink-0 sm:ml-auto">
+            <Link to="/analytics" className="text-link">
+              Compare categories
+            </Link>
+            <Link to="/categories" className="text-link">
+              Manage categories
+            </Link>
+          </div>
         </div>
       </div>
 

@@ -9,6 +9,7 @@ import {
 } from "../lib/api-client";
 import { findCategoryByName, sortCategories, uniqueCategoryId } from "../lib/categories";
 import { PageHeader } from "../components/ui/PageHeader";
+import { Select } from "../components/ui/Select";
 import { Toast } from "../components/ui/Toast";
 import type { Entry, ResearchCategory } from "../types";
 
@@ -225,7 +226,10 @@ export function CategoriesPage() {
               return (
                 <li
                   key={category.id}
-                  className="px-5 py-3.5 flex flex-wrap items-center gap-3 justify-between"
+                  className={`px-5 py-3.5 flex flex-wrap items-center gap-3 justify-between transition-colors duration-150 ${
+                    isRenaming ? "" : "hover:bg-surface-hover"
+                  }`}
+                  style={{ transitionTimingFunction: "var(--ease-out)" }}
                 >
                   {isRenaming ? (
                     <div className="flex flex-1 flex-wrap items-center gap-2 min-w-0">
@@ -266,9 +270,11 @@ export function CategoriesPage() {
                     </div>
                   ) : (
                     <>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex items-center gap-2.5">
                         <p className="font-medium text-ink truncate">{category.name}</p>
-                        <p className="text-xs text-muted mt-0.5">{entryCountLabel(count)}</p>
+                        <span className="shrink-0 rounded-full bg-surface-hover px-2 py-0.5 text-xs text-muted tabular-nums">
+                          {entryCountLabel(count)}
+                        </span>
                       </div>
                       <div className="flex gap-2 shrink-0">
                         <button
@@ -292,12 +298,12 @@ export function CategoriesPage() {
               );
             })}
             {entryCounts.uncategorized > 0 && (
-              <li className="px-5 py-3.5 flex items-center justify-between gap-3 bg-surface/60">
-                <div>
-                  <p className="font-medium text-muted">Uncategorized</p>
-                  <p className="text-xs text-muted mt-0.5">
+              <li className="px-5 py-3.5 flex flex-wrap items-center justify-between gap-3 bg-paper/60">
+                <div className="flex items-center gap-2.5">
+                  <p className="font-medium text-muted italic">Uncategorized</p>
+                  <span className="shrink-0 rounded-full bg-surface-hover px-2 py-0.5 text-xs text-muted tabular-nums">
                     {entryCountLabel(entryCounts.uncategorized)}
-                  </p>
+                  </span>
                 </div>
                 <p className="text-xs text-muted">Not a category — assign entries to move them out.</p>
               </li>
@@ -340,12 +346,12 @@ export function CategoriesPage() {
                 >
                   Move entries to
                 </label>
-                <select
+                <Select
                   id="reassign-to"
                   value={reassignTo}
                   onChange={(e) => setReassignTo(e.target.value)}
                   disabled={deleting}
-                  className="field-input min-h-10 py-2 w-full"
+                  className="min-h-10 py-2 w-full"
                 >
                   <option value="">Uncategorized</option>
                   {reassignOptions.map((c) => (
@@ -353,7 +359,7 @@ export function CategoriesPage() {
                       {c.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
             )}
 

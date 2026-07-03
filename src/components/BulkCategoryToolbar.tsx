@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Select } from "./ui/Select";
 import { resolveOrCreateCategory, sortCategories } from "../lib/categories";
 import type { ResearchCategory } from "../types";
 
@@ -62,8 +63,8 @@ export function BulkCategoryToolbar({
   };
 
   return (
-    <div className="rounded-lg border border-accent/25 bg-accent/5 px-3 py-2.5 sm:px-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-      <p className="text-sm font-medium text-ink tabular-nums shrink-0">
+    <div className="rounded-lg border border-accent/25 bg-accent-soft px-3 py-2.5 sm:px-4 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
+      <p className="text-sm font-medium text-accent tabular-nums shrink-0">
         {selectedCount === 1 ? "1 entry selected" : `${selectedCount} entries selected`}
       </p>
 
@@ -71,12 +72,12 @@ export function BulkCategoryToolbar({
         <label htmlFor="bulk-category" className="sr-only">
           Category for selected entries
         </label>
-        <select
+        <Select
           id="bulk-category"
           value={categoryId}
           onChange={(e) => setCategoryId(e.target.value)}
           disabled={busy}
-          className="field-input min-h-10 py-2 flex-1 min-w-[10rem] max-w-xs"
+          className="min-h-10 py-2 flex-1 min-w-[10rem] max-w-xs"
         >
           <option value="">Uncategorized</option>
           {sorted.map((c) => (
@@ -84,7 +85,7 @@ export function BulkCategoryToolbar({
               {c.name}
             </option>
           ))}
-        </select>
+        </Select>
 
         <button
           type="button"

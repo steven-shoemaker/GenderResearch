@@ -15,6 +15,7 @@ import { entryImportKey, importJobKey, listingToEntry } from "../lib/import-jobs
 import { ImportJobDrawer } from "../components/ImportJobDrawer";
 import { Field, TextInput } from "../components/ui/Field";
 import { PageHeader } from "../components/ui/PageHeader";
+import { Select } from "../components/ui/Select";
 import { Toast } from "../components/ui/Toast";
 import type { JobSearchTimeFrame } from "../lib/api-client";
 import type { ImportJobListing, Lexicon, ResearchCategory } from "../types";
@@ -279,33 +280,33 @@ export function ImportPage() {
             />
           </Field>
           <Field label="Source feed" htmlFor="import-feed">
-            <select
+            <Select
               id="import-feed"
               value={feed}
               onChange={(e) => setFeed(e.target.value as "ats" | "jb")}
-              className="w-full rounded-md border border-line bg-paper px-3 py-2.5 text-sm text-ink min-h-11 focus:outline-none focus:ring-2 focus:ring-accent/30"
+              className="min-h-11"
             >
               <option value="ats">Career sites (ATS)</option>
               <option value="jb">Job boards (LinkedIn, etc.)</option>
-            </select>
+            </Select>
           </Field>
           <Field
             label="Posted within"
             htmlFor="import-time-frame"
             hint="Fantastic.jobs window — 6 months uses cursor pagination (slower backfill)"
           >
-            <select
+            <Select
               id="import-time-frame"
               value={timeFrame}
               onChange={(e) => setTimeFrame(e.target.value as JobSearchTimeFrame)}
-              className="w-full rounded-md border border-line bg-paper px-3 py-2.5 text-sm text-ink min-h-11 focus:outline-none focus:ring-2 focus:ring-accent/30"
+              className="min-h-11"
             >
               {TIME_FRAME_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
         </div>
         <div className="space-y-1">
@@ -316,11 +317,16 @@ export function ImportPage() {
             onCreateCategory={handleCreateCategory}
             allowUncategorized={false}
             label="Import into category"
-            hint="New jobs will be tagged with this category. Use the same word list for all categories; filter on Entries to compare or combine."
+            hint="New jobs will be tagged with this category. Every category shares the same word list, so you can compare them on Analytics or combine them by filtering Entries."
           />
-          <Link to="/categories" className="text-link text-xs inline-block">
-            Manage categories
-          </Link>
+          <div className="flex items-center gap-3 text-xs">
+            <Link to="/analytics" className="text-link">
+              Compare categories
+            </Link>
+            <Link to="/categories" className="text-link">
+              Manage categories
+            </Link>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
