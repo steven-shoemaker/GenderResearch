@@ -1,9 +1,10 @@
 import { Link } from "react-router-dom";
 import { formatPercent } from "../lib/analyze";
+import { categoryNameById } from "../lib/categories";
 import { entryTitle } from "../lib/entries";
 import { entryIsStale } from "../lib/utils";
 import { GenderBarTrack } from "./GenderBarTrack";
-import type { Entry, Lexicon } from "../types";
+import type { Entry, Lexicon, ResearchCategory } from "../types";
 
 function formatCapturedDate(iso: string): string {
   if (!iso) return "—";
@@ -21,9 +22,10 @@ function formatCapturedDate(iso: string): string {
 interface EntriesTableProps {
   entries: Entry[];
   lexicon: Lexicon | null;
+  categories?: ResearchCategory[];
 }
 
-export function EntriesTable({ entries, lexicon }: EntriesTableProps) {
+export function EntriesTable({ entries, lexicon, categories = [] }: EntriesTableProps) {
   return (
     <div className="panel overflow-hidden flex flex-col min-h-0">
       <div className="overflow-auto max-h-[min(28rem,58vh)] overscroll-contain">
@@ -35,6 +37,9 @@ export function EntriesTable({ entries, lexicon }: EntriesTableProps) {
               </th>
               <th scope="col" className="py-2.5 px-2 font-medium hidden sm:table-cell">
                 Company
+              </th>
+              <th scope="col" className="py-2.5 px-2 font-medium hidden md:table-cell">
+                Category
               </th>
               <th scope="col" className="py-2.5 px-2 font-medium whitespace-nowrap">
                 Date
@@ -99,6 +104,11 @@ export function EntriesTable({ entries, lexicon }: EntriesTableProps) {
                   <td className="py-2 px-2 hidden sm:table-cell text-muted max-w-[8rem]">
                     <Link to={`/entry/${entry.id}`} className="block truncate">
                       {entry.company || "—"}
+                    </Link>
+                  </td>
+                  <td className="py-2 px-2 hidden md:table-cell text-muted max-w-[8rem]">
+                    <Link to={`/entry/${entry.id}`} className="block truncate">
+                      {categoryNameById(categories, entry.categoryId)}
                     </Link>
                   </td>
                   <td className="py-2 px-2 text-muted tabular-nums whitespace-nowrap">

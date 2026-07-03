@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  fetchCategories,
   fetchEntries,
   fetchLexicon,
+  saveCategories,
   saveEntry,
   searchImportJobs,
 } from "../lib/api-client";
+import { sortCategories } from "../lib/categories";
+import { CategorySelect } from "../components/CategorySelect";
 import { analyzeText } from "../lib/analyze";
 import { entryImportKey, importJobKey, listingToEntry } from "../lib/import-jobs";
 import { ImportJobDrawer } from "../components/ImportJobDrawer";
@@ -13,7 +17,7 @@ import { Field, TextInput } from "../components/ui/Field";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Toast } from "../components/ui/Toast";
 import type { JobSearchTimeFrame } from "../lib/api-client";
-import type { ImportJobListing, Lexicon } from "../types";
+import type { ImportJobListing, Lexicon, ResearchCategory } from "../types";
 
 const TIME_FRAME_OPTIONS: { value: JobSearchTimeFrame; label: string }[] = [
   { value: "24h", label: "Last 24 hours" },
@@ -46,6 +50,8 @@ export function ImportPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [importedKeys, setImportedKeys] = useState<Set<string>>(new Set());
   const [lexicon, setLexicon] = useState<Lexicon | null>(null);
+  const [categories, setCategories] = useState<ResearchCategory[]>([]);
+  const [importCategoryId, setImportCategoryId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState<{
@@ -65,8 +71,13 @@ export function ImportPage() {
     let cancelled = false;
     (async () => {
       try {
-        const [entries, lex] = await Promise.all([fetchEntries(), fetchLexicon()]);
+        const [entries, lex, cats] = await Promise.all([
+          fetchEntries(),
+          fetchLexicon(),
+          fetchCategories(),
+        ]);
         if (cancelled) return;
+        const sortedCats = sortCategories(cats);
         const keys = new Set<string>();
         for (const e of entries) {
           const key = entryImportKey(e);
@@ -74,6 +85,8 @@ export function ImportPage() {
         }
         setImportedKeys(keys);
         setLexicon(lex);
+        setCategories(sortedCats);
+        setImportCategoryId(sortedCats[0]?.id ?? null);
       } catch {
         if (!cancelled) setError("Could not load entries or word list.");
       }
@@ -185,7 +198,7 @@ export function ImportPage() {
       const listing = toImport[i]!;
       try {
         const analysis = analyzeText(listing.description, lexicon);
-        const entry = listingToEntry(listing, analysis);
+        const entry = listingToEntry(listing, analysis, importCategoryId);
         await saveEntry(entry);
         newKeys.add(jobKey(listing));
         succeeded++;
@@ -207,6 +220,12 @@ export function ImportPage() {
           : `Imported ${succeeded} entries. View them on Entries.`,
       );
     }
+  };
+
+  const handleCreateCategory = async (category: ResearchCategory) => {
+    const next = sortCategories([...categories, category]);
+    const saved = await saveCategories(next);
+    setCategories(sortCategories(saved));
   };
 
   return (
@@ -289,6 +308,15 @@ export function ImportPage() {
             </select>
           </Field>
         </div>
+        <CategorySelect
+          categories={categories}
+          value={importCategoryId}
+          onChange={setImportCategoryId}
+          onCreateCategory={handleCreateCategory}
+          allowUncategorized={false}
+          label="Import into category"
+          hint="New jobs will be tagged with this category. Use the same word list for all categories; filter on Entries to compare or combine."
+        />
         <div className="flex flex-wrap gap-2">
           <button
             type="button"

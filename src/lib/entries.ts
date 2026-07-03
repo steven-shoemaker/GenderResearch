@@ -4,6 +4,7 @@ import { newId, todayIsoDate } from "./utils";
 export function normalizeEntry(entry: Entry): Entry {
   return {
     ...entry,
+    categoryId: entry.categoryId ?? null,
     salaryGbp: entry.salaryGbp ?? null,
     industry: entry.industry ?? "",
     externalJobId: entry.externalJobId ?? null,
@@ -21,6 +22,7 @@ export function createPreviewEntry(): Entry {
     company: "",
     sourceUrl: "",
     capturedDate: todayIsoDate(),
+    categoryId: null,
     industry: "",
     externalJobId: null,
     importSource: null,

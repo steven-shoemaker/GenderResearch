@@ -1,31 +1,48 @@
 import { useMemo, useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { CorpusSummary } from "../components/CorpusSummary";
+import { CategoryFilter as CategoryFilterBar } from "../components/CategorySelect";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { EntriesTable } from "../components/EntriesTable";
 import { Toast } from "../components/ui/Toast";
 import {
   fetchBackupStatus,
+  fetchCategories,
   fetchEntries,
   fetchLexicon,
   restoreEntriesBackup,
   importEntries,
+  saveCategories,
   syncEntriesBackup,
 } from "../lib/api-client";
+import {
+  ALL_CATEGORIES_FILTER,
+  categoryNameById,
+  entryMatchesCategoryFilter,
+  sortCategories,
+  UNCategorized_FILTER,
+  type CategoryFilter,
+} from "../lib/categories";
 import { computeCorpusStats } from "../lib/corpus-stats";
 import { exportEntriesCsv } from "../lib/export-csv";
 import { parseEntriesCsv, csvImportExistingFromEntries } from "../lib/import-csv";
 import { recomputeStaleEntries } from "../lib/recompute-entries";
 import { entryTitle } from "../lib/entries";
 import { PageHeader } from "../components/ui/PageHeader";
-import type { Entry, Lexicon } from "../types";
+import type { Entry, Lexicon, ResearchCategory } from "../types";
 
 function filterEntries(
   entries: Entry[],
   query: string,
   showArchived: boolean,
+  categoryFilter: CategoryFilter,
 ): Entry[] {
-  let list = entries.filter((e) => e.saved && e.archived === showArchived);
+  let list = entries.filter(
+    (e) =>
+      e.saved &&
+      e.archived === showArchived &&
+      entryMatchesCategoryFilter(e, categoryFilter),
+  );
   const q = query.trim().toLowerCase();
   if (q) {
     list = list.filter(
@@ -46,7 +63,9 @@ function filterEntries(
 export function CorpusPage() {
   const [search, setSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>(ALL_CATEGORIES_FILTER);
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [categories, setCategories] = useState<ResearchCategory[]>([]);
   const [lexicon, setLexicon] = useState<Lexicon | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -94,6 +113,14 @@ export function CorpusPage() {
       } catch {
         lexiconError = "Could not load word list. Scores may be outdated until it reloads.";
       }
+      try {
+        const c = await fetchCategories();
+        if (!cancelled) setCategories(sortCategories(c));
+      } catch {
+        if (!entriesError && !lexiconError) {
+          setError("Could not load categories.");
+        }
+      }
       if (!cancelled) {
         if (entriesError) setError(entriesError);
         else if (lexiconError) setError(lexiconError);
@@ -137,18 +164,42 @@ export function CorpusPage() {
     };
   }, [entries.length]);
 
-  const visible = filterEntries(entries, search, showArchived);
+  const visible = filterEntries(entries, search, showArchived, categoryFilter);
   const corpusStats = useMemo(
-    () => computeCorpusStats(entries, showArchived, lexicon),
-    [entries, showArchived, lexicon],
+    () => computeCorpusStats(entries, showArchived, lexicon, categoryFilter),
+    [entries, showArchived, lexicon, categoryFilter],
   );
 
+  const categoryLabel = useMemo(() => {
+    if (categoryFilter === ALL_CATEGORIES_FILTER) return "All categories (combined)";
+    if (categoryFilter === UNCategorized_FILTER) return "Uncategorized";
+    return categoryNameById(categories, categoryFilter);
+  }, [categoryFilter, categories]);
+
+  const handleCreateCategory = async (category: ResearchCategory) => {
+    const next = sortCategories([...categories, category]);
+    const saved = await saveCategories(next);
+    setCategories(sortCategories(saved));
+  };
+
   const exportableCount = entries.filter(
-    (e) => e.saved && e.archived === showArchived,
+    (e) =>
+      e.saved &&
+      e.archived === showArchived &&
+      entryMatchesCategoryFilter(e, categoryFilter),
   ).length;
 
   const handleExportCsv = () => {
-    exportEntriesCsv(entries, lexicon, { archivedOnly: showArchived });
+    const pool = entries.filter(
+      (e) =>
+        e.saved &&
+        e.archived === showArchived &&
+        entryMatchesCategoryFilter(e, categoryFilter),
+    );
+    exportEntriesCsv(pool, lexicon, {
+      archivedOnly: showArchived,
+      categories,
+    });
   };
 
   const handleImportCsvClick = () => {
@@ -170,6 +221,7 @@ export function CorpusPage() {
         text,
         lexicon,
         existing,
+        categories,
       );
       if (imported.length === 0) {
         const detail =
@@ -285,6 +337,7 @@ export function CorpusPage() {
         lexicon,
         showArchived,
         (done, total) => setRecomputeProgress({ done, total }),
+        categoryFilter,
       );
 
       if (succeeded.length > 0) {
@@ -408,31 +461,41 @@ export function CorpusPage() {
         }
       />
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <div className="flex-1" role="search">
-          <label htmlFor="search-entries" className="sr-only">
-            Search entries
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="flex-1" role="search">
+            <label htmlFor="search-entries" className="sr-only">
+              Search entries
+            </label>
+            <input
+              id="search-entries"
+              type="search"
+              placeholder="Search title, company, notes, or text…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="field-input min-h-10 py-2"
+              disabled={recomputingAll}
+            />
+          </div>
+          <label className="inline-flex items-center gap-2 text-sm text-muted cursor-pointer min-h-10 shrink-0 px-1">
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => setShowArchived(e.target.checked)}
+              disabled={recomputingAll}
+              className="size-4 rounded border-line text-accent focus:ring-accent/30"
+            />
+            Show archived
           </label>
-          <input
-            id="search-entries"
-            type="search"
-            placeholder="Search title, company, notes, or text…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="field-input min-h-10 py-2"
-            disabled={recomputingAll}
-          />
         </div>
-        <label className="inline-flex items-center gap-2 text-sm text-muted cursor-pointer min-h-10 shrink-0 px-1">
-          <input
-            type="checkbox"
-            checked={showArchived}
-            onChange={(e) => setShowArchived(e.target.checked)}
-            disabled={recomputingAll}
-            className="size-4 rounded border-line text-accent focus:ring-accent/30"
-          />
-          Show archived
-        </label>
+
+        <CategoryFilterBar
+          categories={categories}
+          value={categoryFilter}
+          onChange={(value) => setCategoryFilter(value as CategoryFilter)}
+          onCreateCategory={handleCreateCategory}
+          disabled={loading || recomputingAll}
+        />
       </div>
 
       {backupToast && <Toast tone="success">{backupToast}</Toast>}
@@ -467,6 +530,8 @@ export function CorpusPage() {
         <CorpusSummary
           stats={corpusStats}
           showArchived={showArchived}
+          categoryFilter={categoryFilter}
+          categoryLabel={categoryLabel}
           onRecomputeAll={
             lexicon && corpusStats.staleCount > 0 ? () => void handleRecomputeAll() : undefined
           }
@@ -494,7 +559,7 @@ export function CorpusPage() {
           )}
         </div>
       ) : (
-        <EntriesTable entries={visible} lexicon={lexicon} />
+        <EntriesTable entries={visible} lexicon={lexicon} categories={categories} />
       )}
 
       {showRestoreConfirm && (

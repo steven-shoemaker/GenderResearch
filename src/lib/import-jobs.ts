@@ -13,6 +13,7 @@ export function entryImportKey(entry: Entry): string | null {
 export function listingToEntry(
   listing: ImportJobListing,
   analysis: AnalysisResult,
+  categoryId: string | null = null,
 ): Entry {
   const now = new Date().toISOString();
   const captured =
@@ -29,6 +30,7 @@ export function listingToEntry(
     company: listing.company,
     sourceUrl: listing.sourceUrl,
     capturedDate: captured,
+    categoryId,
     industry: listing.industry,
     externalJobId: listing.externalId,
     importSource: listing.importSource,

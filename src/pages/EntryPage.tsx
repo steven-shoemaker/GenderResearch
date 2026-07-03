@@ -2,12 +2,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useBlocker, useNavigate, useParams } from "react-router-dom";
 import {
   deleteAttachment,
+  fetchCategories,
   fetchEntry,
   fetchLexicon,
   removeEntry,
+  saveCategories,
   saveEntry as apiSaveEntry,
   uploadAttachment,
 } from "../lib/api-client";
+import { CategorySelect } from "../components/CategorySelect";
+import { sortCategories } from "../lib/categories";
 import { analyzeText } from "../lib/analyze";
 import { createPreviewEntry, entryTitle, normalizeEntry } from "../lib/entries";
 import { parseSalaryGbp, formatSalaryGbp } from "../lib/salary";
@@ -18,7 +22,7 @@ import { ScoreStrip } from "../components/ScoreStrip";
 import { Field, TextArea, TextInput } from "../components/ui/Field";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Toast } from "../components/ui/Toast";
-import type { AttachmentMeta, Entry, Lexicon } from "../types";
+import type { AttachmentMeta, Entry, Lexicon, ResearchCategory } from "../types";
 
 interface PendingFile {
   id: string;
@@ -32,6 +36,7 @@ export function EntryPage() {
 
   const [entry, setEntry] = useState<Entry | null>(null);
   const [lexicon, setLexicon] = useState<Lexicon | null>(null);
+  const [categories, setCategories] = useState<ResearchCategory[]>([]);
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const [loading, setLoading] = useState(!isNew);
   const [analyzing, setAnalyzing] = useState(false);
@@ -58,6 +63,9 @@ export function EntryPage() {
     fetchLexicon()
       .then(setLexicon)
       .catch(() => setError("Could not load word list."));
+    fetchCategories()
+      .then((c) => setCategories(sortCategories(c)))
+      .catch(() => setError("Could not load categories."));
   }, []);
 
   useEffect(() => {
@@ -199,6 +207,12 @@ export function EntryPage() {
         setError("Couldn't save details. Try again.");
       }
     }
+  };
+
+  const handleCreateCategory = async (category: ResearchCategory) => {
+    const next = sortCategories([...categories, category]);
+    const saved = await saveCategories(next);
+    setCategories(sortCategories(saved));
   };
 
   const queueOrUploadFile = async (file: File) => {
@@ -383,6 +397,16 @@ export function EntryPage() {
               onChange={(e) => void saveMetadata({ ...entry, company: e.target.value })}
             />
           </Field>
+          <div className="sm:col-span-2">
+            <CategorySelect
+              categories={categories}
+              value={entry.categoryId}
+              onChange={(categoryId) =>
+                void saveMetadata({ ...entry, categoryId })
+              }
+              onCreateCategory={handleCreateCategory}
+            />
+          </div>
           <Field
             label="Industry"
             htmlFor="industry"

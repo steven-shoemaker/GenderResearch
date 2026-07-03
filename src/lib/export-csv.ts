@@ -1,13 +1,15 @@
 import { formatPercent } from "./analyze";
+import { categoryNameById } from "./categories";
 import { entryTitle } from "./entries";
 import { entryIsStale } from "./utils";
-import type { Entry, Lexicon } from "../types";
+import type { Entry, Lexicon, ResearchCategory } from "../types";
 
 export const CSV_EXPORT_COLUMNS = [
   "title",
   "company",
   "source_url",
   "captured_date",
+  "category",
   "industry",
   "salary_gbp",
   "notes",
@@ -49,6 +51,7 @@ function entryAppLink(entryId: string): string {
 export function entriesToCsv(
   entries: Entry[],
   lexicon: Lexicon | null,
+  categories: ResearchCategory[] = [],
 ): string {
   const saved = entries
     .filter((e) => e.saved)
@@ -66,6 +69,7 @@ export function entriesToCsv(
       cell(entry.company),
       cell(entry.sourceUrl),
       cell(entry.capturedDate),
+      cell(categoryNameById(categories, entry.categoryId)),
       cell(entry.industry),
       cell(entry.salaryGbp ?? ""),
       cell(entry.notes),
@@ -101,14 +105,14 @@ export function downloadCsvFile(filename: string, csv: string): void {
 export function exportEntriesCsv(
   entries: Entry[],
   lexicon: Lexicon | null,
-  options?: { archivedOnly?: boolean },
+  options?: { archivedOnly?: boolean; categories?: ResearchCategory[] },
 ): void {
   const pool = entries.filter(
     (e) => e.saved && e.archived === Boolean(options?.archivedOnly),
   );
   if (pool.length === 0) return;
 
-  const csv = entriesToCsv(pool, lexicon);
+  const csv = entriesToCsv(pool, lexicon, options?.categories ?? []);
   const date = new Date().toISOString().slice(0, 10);
   const suffix = options?.archivedOnly ? "archived" : "entries";
   downloadCsvFile(`gender-research-${suffix}-${date}.csv`, csv);
