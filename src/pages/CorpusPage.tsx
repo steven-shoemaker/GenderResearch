@@ -329,6 +329,7 @@ export function CorpusPage() {
       exportedAt: new Date().toISOString(),
       entries,
       lexicon,
+      categories,
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
       type: "application/json",

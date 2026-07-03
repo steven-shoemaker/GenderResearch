@@ -6,6 +6,7 @@ const ENTRIES_BLOB = "gender-research/entries.json";
 export const ENTRIES_BACKUP_BLOB = "gender-research/entries.backup.json";
 const LEXICON_BLOB = "gender-research/lexicon.json";
 const CATEGORIES_BLOB = "gender-research/categories.json";
+const CATEGORIES_BACKUP_BLOB = "gender-research/categories.backup.json";
 const BACKUPS_PREFIX = "gender-research/backups/";
 const BACKUP_MANIFEST_BLOB = "gender-research/backups/manifest.json";
 const MAX_SNAPSHOTS = 60;
@@ -203,6 +204,14 @@ export async function getCategories(): Promise<ResearchCategory[]> {
 }
 
 export async function saveCategories(categories: ResearchCategory[]): Promise<ResearchCategory[]> {
+  // Back up the previous list before overwrite, same pattern as upsertEntry, so an
+  // accidental save (e.g. dropping a category) can be recovered from the rolling copy.
+  try {
+    const previous = await getCategories();
+    if (previous.length) await writeJson(CATEGORIES_BACKUP_BLOB, previous);
+  } catch {
+    // Missing/unreadable previous categories should not block saving new ones.
+  }
   const normalized = categories.map((c) => ({
     id: c.id.trim(),
     name: c.name.trim(),
@@ -299,15 +308,18 @@ async function restoreAttachments(stamp: string, entries: Entry[]) {
 export async function syncEntriesBackup(trigger?: string): Promise<Manifest> {
   const entries = await getEntries();
   const lexicon = await getLexicon();
+  const categories = await getCategories();
   const now = new Date();
   const stamp = snapshotStamp(now);
   const entriesSnapshot = BACKUPS_PREFIX + "entries-" + stamp + ".json";
   const lexiconSnapshot = BACKUPS_PREFIX + "lexicon-" + stamp + ".json";
+  const categoriesSnapshot = BACKUPS_PREFIX + "categories-" + stamp + ".json";
   if (entries.length) {
     await writeJson(ENTRIES_BACKUP_BLOB, entries);
     await writeJson(entriesSnapshot, entries);
   }
   await writeJson(lexiconSnapshot, lexicon);
+  await writeJson(categoriesSnapshot, categories);
   let attachmentCount = 0;
   if (entries.length) {
     attachmentCount = await backupAttachments("rolling", entries);
@@ -328,6 +340,7 @@ export async function syncEntriesBackup(trigger?: string): Promise<Manifest> {
   for (const s of overflow) {
     await deleteBlobPath(BACKUPS_PREFIX + "entries-" + s.id + ".json");
     await deleteBlobPath(BACKUPS_PREFIX + "lexicon-" + s.id + ".json");
+    await deleteBlobPath(BACKUPS_PREFIX + "categories-" + s.id + ".json");
     await deleteBackupAttachmentTree(s.id);
   }
   const next: Manifest = {
