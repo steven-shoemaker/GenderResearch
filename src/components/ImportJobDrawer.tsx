@@ -150,7 +150,7 @@ export function ImportJobDrawer({
                 checked={selected}
                 disabled={importing}
                 onChange={onToggleSelect}
-                className="size-4 rounded border-line text-accent focus:ring-accent/30"
+                className="checkbox"
               />
               Select for import
             </label>

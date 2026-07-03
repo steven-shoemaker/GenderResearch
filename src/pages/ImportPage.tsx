@@ -429,11 +429,13 @@ export function ImportPage() {
                             disabled={imported || importing}
                             onChange={() => toggleOne(job.externalId)}
                             aria-label={`Select ${job.title}`}
-                            className="size-4 rounded border-line text-accent focus:ring-accent/30"
+                            className="checkbox"
                           />
                         </td>
                         <td className="py-2.5 px-2 align-top">
-                          <div className="font-medium text-ink">{job.title}</div>
+                          <div className="font-medium text-ink max-w-[10rem] sm:max-w-[14rem] lg:max-w-[18rem] leading-snug break-words">
+                            {job.title}
+                          </div>
                           {job.location && (
                             <div className="text-xs text-muted mt-0.5">{job.location}</div>
                           )}

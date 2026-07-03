@@ -80,7 +80,7 @@ export function AnalyticsPage() {
                 type="checkbox"
                 checked={showArchived}
                 onChange={(e) => setShowArchived(e.target.checked)}
-                className="size-4 rounded border-line text-accent focus:ring-accent/30"
+                className="checkbox"
               />
               Show archived
             </label>

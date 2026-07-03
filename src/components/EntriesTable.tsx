@@ -63,7 +63,7 @@ export function EntriesTable({
                     aria-label={
                       allSelected ? "Clear selection" : "Select all visible entries"
                     }
-                    className="size-4 rounded border-line text-accent focus:ring-accent/30"
+                    className="checkbox"
                   />
                 </th>
               )}
@@ -128,24 +128,24 @@ export function EntriesTable({
                         onChange={() => onToggleOne!(entry.id)}
                         disabled={selectionDisabled}
                         aria-label={`Select ${title}`}
-                        className="size-4 rounded border-line text-accent focus:ring-accent/30"
+                        className="checkbox"
                       />
                     </td>
                   )}
                   <td className={`py-2 min-w-0 ${selectable ? "pr-2" : "pl-4 pr-2"}`}>
                     <Link
                       to={`/entry/${entry.id}`}
-                      className="block min-w-0 font-medium text-ink group-hover:text-accent truncate"
+                      className="block max-w-[10rem] sm:max-w-[14rem] lg:max-w-[18rem] font-medium text-ink group-hover:text-accent"
                     >
-                      <span className="inline-flex items-center gap-1.5 max-w-full">
+                      <span className="flex items-start gap-1.5">
                         {stale && (
                           <span
-                            className="shrink-0 size-1.5 rounded-full bg-warn-text"
+                            className="mt-1.5 shrink-0 size-1.5 rounded-full bg-warn-text"
                             title="Scores outdated"
                             aria-label="Scores outdated"
                           />
                         )}
-                        <span className="truncate">{title}</span>
+                        <span className="leading-snug break-words">{title}</span>
                       </span>
                     </Link>
                     {entry.company && (
