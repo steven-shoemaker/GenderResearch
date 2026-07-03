@@ -1,10 +1,10 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
+import { NavMenu } from "./ui/NavMenu";
 
 export function Layout() {
   const { pathname } = useLocation();
-  const onLexicon = pathname === "/word-list";
   const onImport = pathname === "/import";
-  const onCategories = pathname === "/categories";
+  const onAnalytics = pathname === "/analytics";
   const onEntry = pathname.startsWith("/entry");
 
   return (
@@ -31,6 +31,17 @@ export function Layout() {
               Entries
             </Link>
             <Link
+              to="/analytics"
+              className={`rounded-md px-3 py-2 min-h-11 inline-flex items-center transition-colors duration-200 ${
+                onAnalytics
+                  ? "text-ink bg-surface-hover"
+                  : "text-muted hover:text-ink hover:bg-surface-hover"
+              }`}
+              style={{ transitionTimingFunction: "var(--ease-out)" }}
+            >
+              Analytics
+            </Link>
+            <Link
               to="/import"
               className={`rounded-md px-3 py-2 min-h-11 inline-flex items-center transition-colors duration-200 ${
                 onImport
@@ -41,28 +52,13 @@ export function Layout() {
             >
               Import
             </Link>
-            <Link
-              to="/categories"
-              className={`rounded-md px-3 py-2 min-h-11 inline-flex items-center transition-colors duration-200 ${
-                onCategories
-                  ? "text-ink bg-surface-hover"
-                  : "text-muted hover:text-ink hover:bg-surface-hover"
-              }`}
-              style={{ transitionTimingFunction: "var(--ease-out)" }}
-            >
-              Categories
-            </Link>
-            <Link
-              to="/word-list"
-              className={`rounded-md px-3 py-2 min-h-11 inline-flex items-center transition-colors duration-200 ${
-                onLexicon
-                  ? "text-ink bg-surface-hover"
-                  : "text-muted hover:text-ink hover:bg-surface-hover"
-              }`}
-              style={{ transitionTimingFunction: "var(--ease-out)" }}
-            >
-              Word list
-            </Link>
+            <NavMenu
+              label="Manage"
+              items={[
+                { to: "/categories", label: "Categories" },
+                { to: "/word-list", label: "Word list" },
+              ]}
+            />
           </nav>
         </div>
       </header>

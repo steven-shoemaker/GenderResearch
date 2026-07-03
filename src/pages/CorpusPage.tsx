@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { BulkCategoryToolbar } from "../components/BulkCategoryToolbar";
 import { CorpusSummary } from "../components/CorpusSummary";
 import { CategoryFilter as CategoryFilterBar } from "../components/CategorySelect";
@@ -64,9 +64,26 @@ function filterEntries(
 }
 
 export function CorpusPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>(ALL_CATEGORIES_FILTER);
+  const [categoryFilter, setCategoryFilterState] = useState<CategoryFilter>(
+    () => searchParams.get("category") || ALL_CATEGORIES_FILTER,
+  );
+
+  /** Keeps the URL deep-linkable (e.g. from Analytics' "View entries" links). */
+  const setCategoryFilter = (value: CategoryFilter) => {
+    setCategoryFilterState(value);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (value === ALL_CATEGORIES_FILTER) next.delete("category");
+        else next.set("category", value);
+        return next;
+      },
+      { replace: true },
+    );
+  };
   const [entries, setEntries] = useState<Entry[]>([]);
   const [categories, setCategories] = useState<ResearchCategory[]>([]);
   const [lexicon, setLexicon] = useState<Lexicon | null>(null);
@@ -553,9 +570,14 @@ export function CorpusPage() {
             onCreateCategory={handleCreateCategory}
             disabled={loading || recomputingAll}
           />
-          <Link to="/categories" className="text-link text-xs shrink-0 sm:ml-auto">
-            Manage categories
-          </Link>
+          <div className="flex items-center gap-3 text-xs shrink-0 sm:ml-auto">
+            <Link to="/analytics" className="text-link">
+              Compare categories
+            </Link>
+            <Link to="/categories" className="text-link">
+              Manage categories
+            </Link>
+          </div>
         </div>
       </div>
 

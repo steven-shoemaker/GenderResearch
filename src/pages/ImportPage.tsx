@@ -317,11 +317,16 @@ export function ImportPage() {
             onCreateCategory={handleCreateCategory}
             allowUncategorized={false}
             label="Import into category"
-            hint="New jobs will be tagged with this category. Use the same word list for all categories; filter on Entries to compare or combine."
+            hint="New jobs will be tagged with this category. Every category shares the same word list, so you can compare them on Analytics or combine them by filtering Entries."
           />
-          <Link to="/categories" className="text-link text-xs inline-block">
-            Manage categories
-          </Link>
+          <div className="flex items-center gap-3 text-xs">
+            <Link to="/analytics" className="text-link">
+              Compare categories
+            </Link>
+            <Link to="/categories" className="text-link">
+              Manage categories
+            </Link>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
