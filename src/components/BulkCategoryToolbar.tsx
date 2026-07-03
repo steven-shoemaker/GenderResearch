@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { sortCategories, uniqueCategoryId } from "../lib/categories";
+import { resolveOrCreateCategory, sortCategories } from "../lib/categories";
 import type { ResearchCategory } from "../types";
 
 interface BulkCategoryToolbarProps {
@@ -51,12 +51,8 @@ export function BulkCategoryToolbar({
     if (!name || !onCreateCategory) return;
     setCreatingCategory(true);
     try {
-      const category: ResearchCategory = {
-        id: uniqueCategoryId(name, categories),
-        name,
-        createdAt: new Date().toISOString(),
-      };
-      await onCreateCategory(category);
+      const { category, isNew } = resolveOrCreateCategory(name, categories);
+      if (isNew) await onCreateCategory(category);
       setCategoryId(category.id);
       setNewName("");
       setCreating(false);

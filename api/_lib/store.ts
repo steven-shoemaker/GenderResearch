@@ -6,6 +6,7 @@ const ENTRIES_BLOB = "gender-research/entries.json";
 export const ENTRIES_BACKUP_BLOB = "gender-research/entries.backup.json";
 const LEXICON_BLOB = "gender-research/lexicon.json";
 const CATEGORIES_BLOB = "gender-research/categories.json";
+const CATEGORIES_BACKUP_BLOB = "gender-research/categories.backup.json";
 const BACKUPS_PREFIX = "gender-research/backups/";
 const BACKUP_MANIFEST_BLOB = "gender-research/backups/manifest.json";
 const MAX_SNAPSHOTS = 60;
@@ -195,14 +196,24 @@ function defaultCategories(): ResearchCategory[] {
 
 export async function getCategories(): Promise<ResearchCategory[]> {
   try {
+    // `null` means the blob has never been written (fresh install); an explicit `[]`
+    // means the user deleted every category, which must stick rather than reseed.
     const stored = await readJson<ResearchCategory[] | null>(CATEGORIES_BLOB, null);
-    return stored?.length ? stored : defaultCategories();
+    return stored ?? defaultCategories();
   } catch {
     return defaultCategories();
   }
 }
 
 export async function saveCategories(categories: ResearchCategory[]): Promise<ResearchCategory[]> {
+  // Back up the previous list before overwrite, same pattern as upsertEntry, so an
+  // accidental save (e.g. dropping a category) can be recovered from the rolling copy.
+  try {
+    const previous = await getCategories();
+    if (previous.length) await writeJson(CATEGORIES_BACKUP_BLOB, previous);
+  } catch {
+    // Missing/unreadable previous categories should not block saving new ones.
+  }
   const normalized = categories.map((c) => ({
     id: c.id.trim(),
     name: c.name.trim(),
@@ -210,6 +221,49 @@ export async function saveCategories(categories: ResearchCategory[]): Promise<Re
   }));
   await writeJson(CATEGORIES_BLOB, normalized);
   return normalized;
+}
+
+export function categoryIdFromUrl(url: string) {
+  const p = new URL(url).pathname.split("/").filter(Boolean);
+  const i = p.indexOf("categories");
+  return i >= 0 && p[i + 1] ? decodeURIComponent(p[i + 1]) : "";
+}
+
+export async function renameCategory(id: string, name: string): Promise<ResearchCategory[]> {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Name cannot be empty");
+  const categories = await getCategories();
+  if (!categories.some((c) => c.id === id)) throw new Error("Category not found");
+  const duplicate = categories.find(
+    (c) => c.id !== id && c.name.localeCompare(trimmed, undefined, { sensitivity: "base" }) === 0,
+  );
+  if (duplicate) throw new Error(`Category "${duplicate.name}" already exists`);
+  const updated = categories.map((c) => (c.id === id ? { ...c, name: trimmed } : c));
+  return saveCategories(updated);
+}
+
+/** Deletes a category, reassigning any entries that used it to `reassignTo` (or null/uncategorized). */
+export async function deleteCategory(
+  id: string,
+  reassignTo: string | null,
+): Promise<{ reassignedCount: number; categories: ResearchCategory[] }> {
+  const categories = await getCategories();
+  if (!categories.some((c) => c.id === id)) throw new Error("Category not found");
+  if (reassignTo && !categories.some((c) => c.id === reassignTo)) {
+    throw new Error("Reassignment category not found");
+  }
+  // Reassign entries first: if the category-list write below fails, entries are already
+  // safely off the doomed category rather than left pointing at a category about to vanish.
+  const entries = await getEntries();
+  const affected = entries.filter((e) => e.categoryId === id);
+  if (affected.length) {
+    const now = new Date().toISOString();
+    const updated = affected.map((e) => ({ ...e, categoryId: reassignTo, updatedAt: now }));
+    await upsertEntries(updated);
+  }
+  const remaining = categories.filter((c) => c.id !== id);
+  const saved = await saveCategories(remaining);
+  return { reassignedCount: affected.length, categories: saved };
 }
 
 export function attachPath(eid: string, aid: string, fn: string) {
@@ -299,15 +353,18 @@ async function restoreAttachments(stamp: string, entries: Entry[]) {
 export async function syncEntriesBackup(trigger?: string): Promise<Manifest> {
   const entries = await getEntries();
   const lexicon = await getLexicon();
+  const categories = await getCategories();
   const now = new Date();
   const stamp = snapshotStamp(now);
   const entriesSnapshot = BACKUPS_PREFIX + "entries-" + stamp + ".json";
   const lexiconSnapshot = BACKUPS_PREFIX + "lexicon-" + stamp + ".json";
+  const categoriesSnapshot = BACKUPS_PREFIX + "categories-" + stamp + ".json";
   if (entries.length) {
     await writeJson(ENTRIES_BACKUP_BLOB, entries);
     await writeJson(entriesSnapshot, entries);
   }
   await writeJson(lexiconSnapshot, lexicon);
+  await writeJson(categoriesSnapshot, categories);
   let attachmentCount = 0;
   if (entries.length) {
     attachmentCount = await backupAttachments("rolling", entries);
@@ -328,6 +385,7 @@ export async function syncEntriesBackup(trigger?: string): Promise<Manifest> {
   for (const s of overflow) {
     await deleteBlobPath(BACKUPS_PREFIX + "entries-" + s.id + ".json");
     await deleteBlobPath(BACKUPS_PREFIX + "lexicon-" + s.id + ".json");
+    await deleteBlobPath(BACKUPS_PREFIX + "categories-" + s.id + ".json");
     await deleteBackupAttachmentTree(s.id);
   }
   const next: Manifest = {

@@ -397,7 +397,7 @@ export function EntryPage() {
               onChange={(e) => void saveMetadata({ ...entry, company: e.target.value })}
             />
           </Field>
-          <div className="sm:col-span-2">
+          <div className="sm:col-span-2 space-y-1">
             <CategorySelect
               categories={categories}
               value={entry.categoryId}
@@ -406,6 +406,9 @@ export function EntryPage() {
               }
               onCreateCategory={handleCreateCategory}
             />
+            <Link to="/categories" className="text-link text-xs inline-block">
+              Manage categories
+            </Link>
           </div>
           <Field
             label="Industry"

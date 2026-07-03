@@ -308,15 +308,20 @@ export function ImportPage() {
             </select>
           </Field>
         </div>
-        <CategorySelect
-          categories={categories}
-          value={importCategoryId}
-          onChange={setImportCategoryId}
-          onCreateCategory={handleCreateCategory}
-          allowUncategorized={false}
-          label="Import into category"
-          hint="New jobs will be tagged with this category. Use the same word list for all categories; filter on Entries to compare or combine."
-        />
+        <div className="space-y-1">
+          <CategorySelect
+            categories={categories}
+            value={importCategoryId}
+            onChange={setImportCategoryId}
+            onCreateCategory={handleCreateCategory}
+            allowUncategorized={false}
+            label="Import into category"
+            hint="New jobs will be tagged with this category. Use the same word list for all categories; filter on Entries to compare or combine."
+          />
+          <Link to="/categories" className="text-link text-xs inline-block">
+            Manage categories
+          </Link>
+        </div>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"

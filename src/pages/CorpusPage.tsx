@@ -21,7 +21,7 @@ import {
   categoryNameById,
   entryMatchesCategoryFilter,
   sortCategories,
-  UNCategorized_FILTER,
+  UNCATEGORIZED_FILTER,
   type CategoryFilter,
 } from "../lib/categories";
 import { bulkAssignCategory } from "../lib/bulk-categories";
@@ -184,7 +184,7 @@ export function CorpusPage() {
 
   const categoryLabel = useMemo(() => {
     if (categoryFilter === ALL_CATEGORIES_FILTER) return "All categories (combined)";
-    if (categoryFilter === UNCategorized_FILTER) return "Uncategorized";
+    if (categoryFilter === UNCATEGORIZED_FILTER) return "Uncategorized";
     return categoryNameById(categories, categoryFilter);
   }, [categoryFilter, categories]);
 
@@ -329,6 +329,7 @@ export function CorpusPage() {
       exportedAt: new Date().toISOString(),
       entries,
       lexicon,
+      categories,
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
       type: "application/json",
@@ -563,13 +564,18 @@ export function CorpusPage() {
           </label>
         </div>
 
-        <CategoryFilterBar
-          categories={categories}
-          value={categoryFilter}
-          onChange={(value) => setCategoryFilter(value as CategoryFilter)}
-          onCreateCategory={handleCreateCategory}
-          disabled={loading || recomputingAll}
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          <CategoryFilterBar
+            categories={categories}
+            value={categoryFilter}
+            onChange={(value) => setCategoryFilter(value as CategoryFilter)}
+            onCreateCategory={handleCreateCategory}
+            disabled={loading || recomputingAll}
+          />
+          <Link to="/categories" className="text-link text-xs shrink-0">
+            Manage categories
+          </Link>
+        </div>
       </div>
 
       {backupToast && <Toast tone="success">{backupToast}</Toast>}

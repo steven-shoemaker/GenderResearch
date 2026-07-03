@@ -95,6 +95,34 @@ export async function saveCategories(
   });
 }
 
+export async function renameCategory(
+  id: string,
+  name: string,
+): Promise<ResearchCategory[]> {
+  return request<ResearchCategory[]>(`/api/categories/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+}
+
+export interface DeleteCategoryResult {
+  deleted: boolean;
+  reassignedCount: number;
+  categories: ResearchCategory[];
+}
+
+export async function deleteCategory(
+  id: string,
+  reassignTo: string | null,
+): Promise<DeleteCategoryResult> {
+  const query = reassignTo ? `?reassignTo=${encodeURIComponent(reassignTo)}` : "";
+  return request<DeleteCategoryResult>(
+    `/api/categories/${encodeURIComponent(id)}${query}`,
+    { method: "DELETE" },
+  );
+}
+
 export async function uploadAttachment(
   entryId: string,
   file: File,
