@@ -44,6 +44,13 @@ export interface ImportJobListing {
   importSource: "fantastic-jobs";
 }
 
+/** User-defined research bucket (e.g. sustainability vs another job type). */
+export interface ResearchCategory {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
 export interface Entry {
   id: string;
   saved: boolean;
@@ -52,6 +59,8 @@ export interface Entry {
   company: string;
   sourceUrl: string;
   capturedDate: string;
+  /** Research category id; null = uncategorized. */
+  categoryId: string | null;
   /** LinkedIn-style industry when imported from a job feed. */
   industry: string;
   /** External job id for dedup (e.g. Fantastic.jobs). */

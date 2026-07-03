@@ -1,10 +1,13 @@
 import { formatPercent } from "../lib/analyze";
 import { formatCorpusStats, type CorpusStats } from "../lib/corpus-stats";
 import { GenderBarTrack } from "./GenderBarTrack";
+import type { CategoryFilter } from "../lib/categories";
 
 interface CorpusSummaryProps {
   stats: CorpusStats;
   showArchived: boolean;
+  categoryFilter?: CategoryFilter;
+  categoryLabel?: string;
   onRecomputeAll?: () => void;
   recomputingAll?: boolean;
   recomputeProgress?: { done: number; total: number } | null;
@@ -13,6 +16,8 @@ interface CorpusSummaryProps {
 export function CorpusSummary({
   stats,
   showArchived,
+  categoryFilter = "all",
+  categoryLabel,
   onRecomputeAll,
   recomputingAll = false,
   recomputeProgress = null,
@@ -58,8 +63,9 @@ export function CorpusSummary({
           </>
         )}
         <span className="text-xs text-muted w-full sm:w-auto sm:ml-auto">
-          {showArchived ? "Archived" : "Collection"} · bar = gendered-word mix · % =
-          all words
+          {showArchived ? "Archived" : "Collection"}
+          {categoryLabel ? ` · ${categoryLabel}` : categoryFilter !== "all" ? "" : " · all categories"}
+          {" · bar = gendered-word mix · % = all words"}
         </span>
       </div>
 

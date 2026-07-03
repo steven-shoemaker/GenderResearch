@@ -1,9 +1,10 @@
 import { analyzeText } from "./analyze";
+import { categorySlug } from "./categories";
 import { normalizeEntry } from "./entries";
 import { CSV_IMPORT_COLUMNS } from "./export-csv";
 import { parseSalaryGbp } from "./salary";
 import { newId, todayIsoDate } from "./utils";
-import type { Entry, Lexicon } from "../types";
+import type { Entry, Lexicon, ResearchCategory } from "../types";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -81,12 +82,29 @@ function normalizeHeader(h: string): string {
 
 function validateHeaders(headers: string[]): string | null {
   const normalized = headers.map(normalizeHeader);
-  const required = CSV_IMPORT_COLUMNS.map((c) => c.toLowerCase());
+  const required = CSV_IMPORT_COLUMNS.filter((c) => c !== "category")
+    .map((c) => c.toLowerCase());
   for (const col of required) {
     if (!normalized.includes(col)) {
       return `Missing column "${col}". Expected: ${CSV_IMPORT_COLUMNS.join(", ")}`;
     }
   }
+  return null;
+}
+
+function resolveCategoryId(
+  raw: string,
+  categories: ResearchCategory[],
+): string | null {
+  const name = raw.trim();
+  if (!name) return null;
+  const exact = categories.find(
+    (c) => c.name.localeCompare(name, undefined, { sensitivity: "base" }) === 0,
+  );
+  if (exact) return exact.id;
+  const slug = categorySlug(name);
+  const bySlug = categories.find((c) => c.id === slug);
+  if (bySlug) return bySlug.id;
   return null;
 }
 
@@ -134,6 +152,7 @@ export function csvRowsToEntries(
   rows: string[][],
   lexicon: Lexicon,
   existing: CsvImportExisting,
+  categories: ResearchCategory[] = [],
 ): CsvImportResult {
   const errors: string[] = [];
   const imported: Entry[] = [];
@@ -201,6 +220,7 @@ export function csvRowsToEntries(
         company: (rec.company ?? "").trim(),
         sourceUrl: (rec.source_url ?? "").trim(),
         capturedDate: captured,
+        categoryId: resolveCategoryId(rec.category ?? "", categories),
         industry: (rec.industry ?? "").trim(),
         externalJobId: null,
         importSource: "csv",
@@ -223,6 +243,7 @@ export function parseEntriesCsv(
   csvText: string,
   lexicon: Lexicon,
   existing: CsvImportExisting,
+  categories: ResearchCategory[] = [],
 ): CsvImportResult {
-  return csvRowsToEntries(parseCsv(csvText), lexicon, existing);
+  return csvRowsToEntries(parseCsv(csvText), lexicon, existing, categories);
 }

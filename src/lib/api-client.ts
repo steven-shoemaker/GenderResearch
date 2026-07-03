@@ -1,4 +1,4 @@
-import type { AttachmentMeta, Entry, ImportJobListing, Lexicon } from "../types";
+import type { AttachmentMeta, Entry, ImportJobListing, Lexicon, ResearchCategory } from "../types";
 
 export type JobSearchTimeFrame = "24h" | "7d" | "6m";
 
@@ -78,6 +78,20 @@ export async function saveLexicon(lexicon: Lexicon): Promise<Lexicon> {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(lexicon),
+  });
+}
+
+export async function fetchCategories(): Promise<ResearchCategory[]> {
+  return request<ResearchCategory[]>("/api/categories");
+}
+
+export async function saveCategories(
+  categories: ResearchCategory[],
+): Promise<ResearchCategory[]> {
+  return request<ResearchCategory[]>("/api/categories", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(categories),
   });
 }
 

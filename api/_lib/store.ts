@@ -5,6 +5,7 @@
 const ENTRIES_BLOB = "gender-research/entries.json";
 export const ENTRIES_BACKUP_BLOB = "gender-research/entries.backup.json";
 const LEXICON_BLOB = "gender-research/lexicon.json";
+const CATEGORIES_BLOB = "gender-research/categories.json";
 const BACKUPS_PREFIX = "gender-research/backups/";
 const BACKUP_MANIFEST_BLOB = "gender-research/backups/manifest.json";
 const MAX_SNAPSHOTS = 60;
@@ -49,6 +50,12 @@ export interface Lexicon {
   masculine: string[];
   feminine: string[];
   updatedAt: string;
+}
+
+export interface ResearchCategory {
+  id: string;
+  name: string;
+  createdAt: string;
 }
 
 export interface Snapshot {
@@ -174,6 +181,35 @@ export async function saveLexicon(l: Lexicon): Promise<Lexicon> {
   const n = { ...l, updatedAt: new Date().toISOString() };
   await writeJson(LEXICON_BLOB, n);
   return n;
+}
+
+function defaultCategories(): ResearchCategory[] {
+  return [
+    {
+      id: "sustainability",
+      name: "Sustainability",
+      createdAt: new Date().toISOString(),
+    },
+  ];
+}
+
+export async function getCategories(): Promise<ResearchCategory[]> {
+  try {
+    const stored = await readJson<ResearchCategory[] | null>(CATEGORIES_BLOB, null);
+    return stored?.length ? stored : defaultCategories();
+  } catch {
+    return defaultCategories();
+  }
+}
+
+export async function saveCategories(categories: ResearchCategory[]): Promise<ResearchCategory[]> {
+  const normalized = categories.map((c) => ({
+    id: c.id.trim(),
+    name: c.name.trim(),
+    createdAt: c.createdAt || new Date().toISOString(),
+  }));
+  await writeJson(CATEGORIES_BLOB, normalized);
+  return normalized;
 }
 
 export function attachPath(eid: string, aid: string, fn: string) {

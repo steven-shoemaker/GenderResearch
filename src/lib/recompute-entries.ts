@@ -1,5 +1,10 @@
 import { saveEntry } from "./api-client";
 import { analyzeText } from "./analyze";
+import {
+  ALL_CATEGORIES_FILTER,
+  entryMatchesCategoryFilter,
+  type CategoryFilter,
+} from "./categories";
 import { entryIsStale } from "./utils";
 import type { Entry, Lexicon } from "../types";
 
@@ -7,11 +12,13 @@ export function listStaleEntries(
   entries: Entry[],
   lexicon: Lexicon,
   showArchived: boolean,
+  categoryFilter: CategoryFilter = ALL_CATEGORIES_FILTER,
 ): Entry[] {
   return entries.filter(
     (e) =>
       e.saved &&
       e.archived === showArchived &&
+      entryMatchesCategoryFilter(e, categoryFilter) &&
       e.bodyText.trim().length > 0 &&
       entryIsStale(e, lexicon),
   );
@@ -22,8 +29,9 @@ export async function recomputeStaleEntries(
   lexicon: Lexicon,
   showArchived: boolean,
   onProgress?: (completed: number, total: number) => void,
+  categoryFilter: CategoryFilter = ALL_CATEGORIES_FILTER,
 ): Promise<{ succeeded: Entry[]; failed: number }> {
-  const targets = listStaleEntries(entries, lexicon, showArchived);
+  const targets = listStaleEntries(entries, lexicon, showArchived, categoryFilter);
   const succeeded: Entry[] = [];
   let failed = 0;
 

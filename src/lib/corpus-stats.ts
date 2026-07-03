@@ -1,5 +1,10 @@
 import { formatPercent } from "./analyze";
 import { entryIsStale } from "./utils";
+import {
+  ALL_CATEGORIES_FILTER,
+  entryMatchesCategoryFilter,
+  type CategoryFilter,
+} from "./categories";
 import type { Entry, Lexicon } from "../types";
 
 export interface CorpusStats {
@@ -16,8 +21,14 @@ export function computeCorpusStats(
   entries: Entry[],
   showArchived: boolean,
   lexicon: Lexicon | null,
+  categoryFilter: CategoryFilter = ALL_CATEGORIES_FILTER,
 ): CorpusStats {
-  const pool = entries.filter((e) => e.saved && e.archived === showArchived);
+  const pool = entries.filter(
+    (e) =>
+      e.saved &&
+      e.archived === showArchived &&
+      entryMatchesCategoryFilter(e, categoryFilter),
+  );
 
   let totalWords = 0;
   let masculineCount = 0;
