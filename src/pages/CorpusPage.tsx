@@ -556,7 +556,7 @@ export function CorpusPage() {
               checked={showArchived}
               onChange={(e) => setShowArchived(e.target.checked)}
               disabled={recomputingAll}
-              className="size-4 rounded border-line text-accent focus:ring-accent/30"
+              className="checkbox"
             />
             Show archived
           </label>
