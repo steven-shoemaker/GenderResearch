@@ -23,16 +23,54 @@ interface EntriesTableProps {
   entries: Entry[];
   lexicon: Lexicon | null;
   categories?: ResearchCategory[];
+  selectedIds?: Set<string>;
+  onToggleOne?: (entryId: string) => void;
+  onToggleAll?: () => void;
+  selectionDisabled?: boolean;
 }
 
-export function EntriesTable({ entries, lexicon, categories = [] }: EntriesTableProps) {
+export function EntriesTable({
+  entries,
+  lexicon,
+  categories = [],
+  selectedIds,
+  onToggleOne,
+  onToggleAll,
+  selectionDisabled = false,
+}: EntriesTableProps) {
+  const selectable = Boolean(selectedIds && onToggleOne && onToggleAll);
+  const allSelected =
+    selectable && entries.length > 0 && entries.every((e) => selectedIds!.has(e.id));
+  const someSelected =
+    selectable && entries.some((e) => selectedIds!.has(e.id)) && !allSelected;
+
   return (
     <div className="panel overflow-hidden flex flex-col min-h-0">
       <div className="overflow-auto max-h-[min(28rem,58vh)] overscroll-contain">
         <table className="w-full text-sm border-collapse">
           <thead className="sticky top-0 z-10 bg-surface shadow-[0_1px_0_var(--color-line)]">
             <tr className="text-left text-xs font-medium text-muted">
-              <th scope="col" className="py-2.5 pl-4 pr-2 font-medium">
+              {selectable && (
+                <th scope="col" className="py-2.5 pl-4 pr-1 w-10">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = someSelected;
+                    }}
+                    onChange={onToggleAll}
+                    disabled={selectionDisabled || entries.length === 0}
+                    aria-label={
+                      allSelected ? "Clear selection" : "Select all visible entries"
+                    }
+                    className="size-4 rounded border-line text-accent focus:ring-accent/30"
+                  />
+                </th>
+              )}
+              <th
+                scope="col"
+                className={`py-2.5 font-medium ${selectable ? "pr-2" : "pl-4 pr-2"}`}
+              >
                 Title
               </th>
               <th scope="col" className="py-2.5 px-2 font-medium hidden sm:table-cell">
@@ -73,13 +111,28 @@ export function EntriesTable({ entries, lexicon, categories = [] }: EntriesTable
               const stale = lexicon ? entryIsStale(entry, lexicon) : false;
               const a = entry.analysis;
               const title = entryTitle(entry);
+              const checked = selectable ? selectedIds!.has(entry.id) : false;
 
               return (
                 <tr
                   key={entry.id}
-                  className="group hover:bg-surface-hover motion-safe:transition-colors motion-safe:duration-150"
+                  className={`group motion-safe:transition-colors motion-safe:duration-150 ${
+                    checked ? "bg-accent/5 hover:bg-accent/10" : "hover:bg-surface-hover"
+                  }`}
                 >
-                  <td className="py-2 pl-4 pr-2 min-w-0">
+                  {selectable && (
+                    <td className="py-2 pl-4 pr-1 align-top" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => onToggleOne!(entry.id)}
+                        disabled={selectionDisabled}
+                        aria-label={`Select ${title}`}
+                        className="size-4 rounded border-line text-accent focus:ring-accent/30"
+                      />
+                    </td>
+                  )}
+                  <td className={`py-2 min-w-0 ${selectable ? "pr-2" : "pl-4 pr-2"}`}>
                     <Link
                       to={`/entry/${entry.id}`}
                       className="block min-w-0 font-medium text-ink group-hover:text-accent truncate"

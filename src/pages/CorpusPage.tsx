@@ -1,5 +1,6 @@
 import { useMemo, useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
+import { BulkCategoryToolbar } from "../components/BulkCategoryToolbar";
 import { CorpusSummary } from "../components/CorpusSummary";
 import { CategoryFilter as CategoryFilterBar } from "../components/CategorySelect";
 import { ConfirmModal } from "../components/ConfirmModal";
@@ -23,6 +24,7 @@ import {
   UNCategorized_FILTER,
   type CategoryFilter,
 } from "../lib/categories";
+import { bulkAssignCategory } from "../lib/bulk-categories";
 import { computeCorpusStats } from "../lib/corpus-stats";
 import { exportEntriesCsv } from "../lib/export-csv";
 import { parseEntriesCsv, csvImportExistingFromEntries } from "../lib/import-csv";
@@ -88,6 +90,12 @@ export function CorpusPage() {
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
   const [backupToast, setBackupToast] = useState<string | null>(null);
   const [importingCsv, setImportingCsv] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkAssigning, setBulkAssigning] = useState(false);
+  const [bulkMessage, setBulkMessage] = useState<{
+    tone: "success" | "warn";
+    text: string;
+  } | null>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
 
   const reloadEntries = async () => {
@@ -164,6 +172,10 @@ export function CorpusPage() {
     };
   }, [entries.length]);
 
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [showArchived, categoryFilter]);
+
   const visible = filterEntries(entries, search, showArchived, categoryFilter);
   const corpusStats = useMemo(
     () => computeCorpusStats(entries, showArchived, lexicon, categoryFilter),
@@ -180,6 +192,68 @@ export function CorpusPage() {
     const next = sortCategories([...categories, category]);
     const saved = await saveCategories(next);
     setCategories(sortCategories(saved));
+  };
+
+  const toggleEntrySelection = (entryId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(entryId)) next.delete(entryId);
+      else next.add(entryId);
+      return next;
+    });
+  };
+
+  const toggleAllVisible = () => {
+    setSelectedIds((prev) => {
+      const visibleIds = visible.map((e) => e.id);
+      const allVisibleSelected =
+        visibleIds.length > 0 && visibleIds.every((id) => prev.has(id));
+      if (allVisibleSelected) {
+        const next = new Set(prev);
+        for (const id of visibleIds) next.delete(id);
+        return next;
+      }
+      return new Set([...prev, ...visibleIds]);
+    });
+  };
+
+  const handleBulkAssignCategory = async (categoryId: string | null) => {
+    if (selectedIds.size === 0) return;
+    setBulkAssigning(true);
+    setBulkMessage(null);
+    setError(null);
+    try {
+      const { updated, failed } = await bulkAssignCategory(
+        entries,
+        selectedIds,
+        categoryId,
+      );
+      if (updated.length > 0) {
+        const byId = new Map(updated.map((e) => [e.id, e]));
+        setEntries((prev) => prev.map((e) => byId.get(e.id) ?? e));
+        setSelectedIds(new Set());
+        const label = categoryId
+          ? categoryNameById(categories, categoryId)
+          : "Uncategorized";
+        setBulkMessage({
+          tone: "success",
+          text:
+            updated.length === 1
+              ? `1 entry moved to ${label}.`
+              : `${updated.length} entries moved to ${label}.`,
+        });
+      }
+      if (failed > 0) {
+        setBulkMessage({
+          tone: "warn",
+          text: "Could not update selected entries. Try again.",
+        });
+      }
+    } catch {
+      setError("Bulk category update failed.");
+    } finally {
+      setBulkAssigning(false);
+    }
   };
 
   const exportableCount = entries.filter(
@@ -526,6 +600,12 @@ export function CorpusPage() {
         </Toast>
       )}
 
+      {bulkMessage && (
+        <Toast tone={bulkMessage.tone === "success" ? "success" : "warn"}>
+          {bulkMessage.text}
+        </Toast>
+      )}
+
       {!loading && (
         <CorpusSummary
           stats={corpusStats}
@@ -559,7 +639,25 @@ export function CorpusPage() {
           )}
         </div>
       ) : (
-        <EntriesTable entries={visible} lexicon={lexicon} categories={categories} />
+        <div className="space-y-3">
+          <BulkCategoryToolbar
+            selectedCount={selectedIds.size}
+            categories={categories}
+            onApply={handleBulkAssignCategory}
+            onCreateCategory={handleCreateCategory}
+            onClearSelection={() => setSelectedIds(new Set())}
+            disabled={bulkAssigning || recomputingAll || importingCsv}
+          />
+          <EntriesTable
+            entries={visible}
+            lexicon={lexicon}
+            categories={categories}
+            selectedIds={selectedIds}
+            onToggleOne={toggleEntrySelection}
+            onToggleAll={toggleAllVisible}
+            selectionDisabled={bulkAssigning || recomputingAll || importingCsv}
+          />
+        </div>
       )}
 
       {showRestoreConfirm && (
