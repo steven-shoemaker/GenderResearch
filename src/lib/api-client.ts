@@ -26,17 +26,35 @@ export interface JobSearchResponse {
   nextCursor: string | null;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, init);
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const message =
-      typeof body === "object" && body && "error" in body
-        ? String((body as { error: string }).error)
-        : `Request failed (${res.status})`;
-    throw new Error(message);
+const DEFAULT_TIMEOUT_MS = 30_000;
+
+/** Bounds every request so a slow/hung function surfaces as an error instead of a stuck spinner. */
+async function request<T>(
+  path: string,
+  init?: RequestInit,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(path, { ...init, signal: controller.signal });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const message =
+        typeof body === "object" && body && "error" in body
+          ? String((body as { error: string }).error)
+          : `Request failed (${res.status})`;
+      throw new Error(message);
+    }
+    return body as T;
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "AbortError") {
+      throw new Error("Request timed out. Check your connection and try again.");
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
   }
-  return body as T;
 }
 
 export async function fetchEntries(): Promise<Entry[]> {
@@ -58,10 +76,26 @@ export async function saveEntry(entry: Entry): Promise<Entry> {
 export async function importEntries(
   entries: Entry[],
 ): Promise<{ added: number; total: number }> {
-  return request<{ added: number; total: number }>("/api/entries/import", {
+  return request<{ added: number; total: number }>(
+    "/api/entries/import",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(entries),
+    },
+    60_000,
+  );
+}
+
+/** Patches only categoryId across many entries in one request — no need to round-trip full entries. */
+export async function bulkSetEntryCategory(
+  entryIds: string[],
+  categoryId: string | null,
+): Promise<{ updated: number }> {
+  return request<{ updated: number }>("/api/entries/bulk-category", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(entries),
+    body: JSON.stringify({ entryIds, categoryId }),
   });
 }
 
@@ -129,10 +163,11 @@ export async function uploadAttachment(
 ): Promise<AttachmentMeta> {
   const form = new FormData();
   form.append("file", file);
-  return request<AttachmentMeta>(`/api/entries/${entryId}/attachments`, {
-    method: "POST",
-    body: form,
-  });
+  return request<AttachmentMeta>(
+    `/api/entries/${entryId}/attachments`,
+    { method: "POST", body: form },
+    120_000,
+  );
 }
 
 export async function searchImportJobs(
@@ -181,7 +216,7 @@ export async function fetchBackupStatus(): Promise<BackupStatus> {
 }
 
 export async function syncEntriesBackup(): Promise<BackupStatus> {
-  return request<BackupStatus>("/api/entries/backup", { method: "POST" });
+  return request<BackupStatus>("/api/entries/backup", { method: "POST" }, 120_000);
 }
 
 export async function restoreEntriesBackup(
@@ -194,5 +229,6 @@ export async function restoreEntriesBackup(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ source }),
     },
+    120_000,
   );
 }
