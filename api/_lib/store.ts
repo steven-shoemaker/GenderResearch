@@ -161,6 +161,29 @@ export async function deleteEntry(id: string) {
   const all = await getEntries();
   await writeJson(ENTRIES_BLOB, all.filter((e) => e.id !== id));
 }
+/**
+ * Patches only categoryId (+ updatedAt) on the given ids, reading the current stored
+ * entries fresh rather than requiring the client to round-trip full entry payloads
+ * (bodyText, analysis.matches, attachments, ...) just to move entries between categories.
+ */
+export async function bulkSetEntryCategory(
+  ids: string[],
+  categoryId: string | null,
+): Promise<{ updated: number }> {
+  if (!ids.length) return { updated: 0 };
+  const idSet = new Set(ids);
+  const all = await getEntries();
+  if (all.length) await writeJson(ENTRIES_BACKUP_BLOB, all);
+  const now = new Date().toISOString();
+  let updated = 0;
+  const next = all.map((e) => {
+    if (!idSet.has(e.id)) return e;
+    updated++;
+    return { ...e, categoryId, updatedAt: now };
+  });
+  if (updated > 0) await writeJson(ENTRIES_BLOB, next);
+  return { updated };
+}
 
 function defaultLexicon(): Lexicon {
   return {

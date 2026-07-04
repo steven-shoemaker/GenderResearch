@@ -1,25 +1,32 @@
-import { importEntries } from "./api-client";
+import { bulkSetEntryCategory } from "./api-client";
 import type { Entry } from "../types";
 
+/**
+ * Sends just the entry ids + target category — not full entry payloads (bodyText,
+ * analysis.matches, attachments, ...). A bulk selection previously round-tripped the
+ * complete contents of every selected entry through the CSV-import endpoint just to
+ * change one field, which could turn into a multi-megabyte request for a large
+ * selection and made "Apply category" feel like it hung.
+ */
 export async function bulkAssignCategory(
   entries: Entry[],
   entryIds: Iterable<string>,
   categoryId: string | null,
 ): Promise<{ updated: Entry[]; failed: number }> {
-  const ids = new Set(entryIds);
-  if (ids.size === 0) return { updated: [], failed: 0 };
+  const idSet = new Set(entryIds);
+  if (idSet.size === 0) return { updated: [], failed: 0 };
 
-  const now = new Date().toISOString();
-  const toSave = entries
-    .filter((e) => ids.has(e.id))
-    .map((e) => ({ ...e, categoryId, updatedAt: now }));
-
-  if (toSave.length === 0) return { updated: [], failed: 0 };
+  const targets = entries.filter((e) => idSet.has(e.id));
+  if (targets.length === 0) return { updated: [], failed: 0 };
 
   try {
-    await importEntries(toSave);
-    return { updated: toSave, failed: 0 };
+    const { updated } = await bulkSetEntryCategory([...idSet], categoryId);
+    const now = new Date().toISOString();
+    return {
+      updated: targets.map((e) => ({ ...e, categoryId, updatedAt: now })),
+      failed: Math.max(0, targets.length - updated),
+    };
   } catch {
-    return { updated: [], failed: toSave.length };
+    return { updated: [], failed: targets.length };
   }
 }
